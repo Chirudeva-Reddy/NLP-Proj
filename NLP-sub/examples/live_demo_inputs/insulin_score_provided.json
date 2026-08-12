@@ -1,0 +1,5 @@
+{
+  "instruction": "Use only the retrieved context to produce the answer.",
+  "context": "Insulin was discovered in 1921 by Frederick Banting and Charles Best while working in John Macleod's laboratory at the University of Toronto. The first successful treatment of a human patient with insulin occurred in 1922.",
+  "passage": "Insulin was discovered in 1921 at the University of Toronto, and it was first used successfully to treat a human patient in 1922."
+}

@@ -1,0 +1,5 @@
+{
+  "instruction": "Use only the retrieved context to produce the answer.",
+  "context": "The Eiffel Tower is located in Paris, France. It was designed by Gustave Eiffel's engineering company and was completed in 1889 for the Exposition Universelle.",
+  "passage": "The Eiffel Tower is located in Rome and was completed in 1905 for the Olympic Games."
+}

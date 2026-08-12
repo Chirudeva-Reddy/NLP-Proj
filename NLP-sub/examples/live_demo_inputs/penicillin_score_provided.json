@@ -1,0 +1,5 @@
+{
+  "instruction": "Use only the retrieved context to produce the answer.",
+  "context": "Alexander Fleming discovered penicillin in 1928. Howard Florey and Ernst Boris Chain later helped develop it for medical use. Penicillin began being used clinically in the early 1940s, especially around 1941.",
+  "passage": "Penicillin was discovered by Alexander Fleming, and it began being used clinically around 1941."
+}

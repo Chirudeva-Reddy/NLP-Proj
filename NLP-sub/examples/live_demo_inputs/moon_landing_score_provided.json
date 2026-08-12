@@ -1,0 +1,5 @@
+{
+  "instruction": "Use only the retrieved context to produce the answer.",
+  "context": "Apollo 11 launched on July 16, 1969. Neil Armstrong and Buzz Aldrin landed the lunar module Eagle on the Moon on July 20, 1969. Michael Collins remained in lunar orbit aboard the command module Columbia.",
+  "passage": "Apollo 11 landed on the Moon on July 20, 1969, while Michael Collins stayed in lunar orbit."
+}

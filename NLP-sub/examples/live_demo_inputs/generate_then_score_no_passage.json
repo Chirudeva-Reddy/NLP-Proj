@@ -1,0 +1,4 @@
+{
+  "instruction": "Use only the retrieved context to produce the answer.",
+  "context": "The Human Genome Project began in 1990 and was declared essentially complete in 2003. Its goal was to determine the sequence of human DNA and identify the genes in the human genome."
+}

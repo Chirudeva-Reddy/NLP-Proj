@@ -12,15 +12,19 @@ env/
 
 # macOS metadata
 .DS_Store
+._*
 
-# Raw and generated data
+# TeX build artifacts
+*.aux
+*.log
+*.out
+*.toc
+*.fls
+*.fdb_latexmk
+
+# Raw and generated data / large binary output tensors
 dataset/
-data/ragtruth/
+data/
 outputs/
-
-# other files
-MarkingRubric.md
-NLP Lit Review.pdf
-NLP Research Project (Track B) — Work Distribution Plan.pdf
-Person 2 cosine drift module for Track B.pdf
-.stfolder
+NLP-sub/outputs/
+*.pt

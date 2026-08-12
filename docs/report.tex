@@ -1,0 +1,128 @@
+\documentclass[10pt,twocolumn,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=0.75in]{geometry}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{cite}
+\usepackage{microtype}
+\usepackage{xcolor}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue!70!black,
+    citecolor=blue!70!black,
+    urlcolor=blue!70!black
+}
+
+\title{\textbf{Pre-Generation Hallucination Detection via Internal Representation Drift}\\[0.5em]
+\large A Report submitted in partial fulfillment of CS F429 --- Natural Language Processing Project}
+
+\author{
+\textbf{Sanya Wadhawan}, \textbf{Chirudeva Reddy}, \textbf{Yusra Hakim}, \textbf{Joseph Cijo}\\
+ID No.: 2023A7PS0296U, 2023A7PS0331U, 2022A7PS0004U, 2022A7PS0019U\\
+B.E. Computer Science, Semester II\\
+\small Department of Computer Science \& Information Systems, BITS Pilani, Dubai Campus\\
+\small \texttt{\{f20230296, f20230331, f20220004, f20220019\}@dubai.bits-pilani.ac.in}\\[0.5em]
+\small Under the Supervision of \textbf{Prof. Elakkiya Rajasekar}
+}
+\date{May 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+In this work, we investigate if hidden-state dynamics in transformer layers are predictive of hallucination before it appears in generated text. Here we test five internal drift signals for the pre-generation detector, including cosine drift, Mahalanobis distance, logit lens divergence, PCA deviation and causal indirect effect (CIE). We evaluate on RAGTruth for main held-out evaluation, and on HaluEval for zero-shot transfer. The full composite achieved an AUROC of 0.6511 on the RAGTruth test set (95\% bootstrap CI: [0.6307, 0.6614]) improving over the Attention entropy baseline of 0.6106 by 0.0405 AUROC. Bidirectional causal patching over 50 paired examples showed significant CIE for early attention, mid FFN, and late FFN components, supporting a causal role for internal activations in hallucinated generation. The earliest significant pre-hallucination peak in the temporal analysis was at position $t-2$ for cosine drift (Mann-Whitney $p = 2.86 \times 10^{-5}$). The frozen composite transferred on HaluEval shows partial cross-domain robustness without re-estimating training statistics with AUROC 0.6450.
+\end{abstract}
+
+\textbf{Keywords:} hallucination detection, retrieval-augmented generation, mechanistic interpretability, representation drift, causal patching, RAGTruth
+
+\section{Introduction}
+\subsection{Motivation}
+Hallucinations are a major challenge in the deployment of retrieval-augmented generation (RAG) systems for real-world applications. Large language models (LLMs) continue to generate fluent but incorrect facts, even when augmented with retrieved evidence. Current implementations of hallucination detectors rely heavily on logit-based or post-generation heuristics. These approaches are slow and noisy, thus failing to explain the internal mechanisms leading to the model hallucinating. These challenges can be addressed by measuring the internal drift in hidden representations across the various layers of the transformer, enabling earlier and more reliable signals for hallucination before they manifest in final text.
+
+\subsection{Research Question}
+\textit{“Do hidden-state dynamics within transformer layers provide predictive signals of hallucination before it manifests in generated text?”}
+
+\subsection{Contributions}
+\begin{itemize}
+    \item \textbf{Five-signal composite:} Integrates five signals (cosine drift, Mahalanobis distance, logit lens divergence, PCA deviation, CIE) to predict hallucination.
+    \item \textbf{Layer localization:} Layer-profile analysis over the last eighteen Qwen layers shows strongest signals concentrate in saved-layer indices 5--15 (actual Qwen layers 15--25).
+    \item \textbf{Causal patching:} 200+ patching experiments reveal hallucinations are identified in early attention and late FFN layers.
+    \item \textbf{Temporal precedence:} Cosine drift peaks at position $t-2$ before the first hallucinated token ($p = 2.86 \times 10^{-5}$).
+    \item \textbf{SOTA gap closure:} Closes the gap to ReDeEP by 19.51\% and LUMINA by 16.44\%.
+\end{itemize}
+
+\section{Problem Formulation}
+Let $\mathcal{M}$ be the language model with $L$ transformer layers, $q$ the query, $\mathcal{D} = \{d_1, \dots, d_k\}$ retrieved documents, and $h_t^{(\ell)}(\mathcal{D}) \in \mathbb{R}^d$ the hidden state at layer $\ell$ and token $t$.
+
+\subsection{Internal Drift Signals}
+\begin{enumerate}
+    \item \textbf{Cosine Drift ($\delta_t^{(\ell)}$):} $1 - \frac{h_t^{(\ell)}(\mathcal{D}) \cdot h_{t-1}^{(\ell)}(\mathcal{D})}{\|h_t^{(\ell)}(\mathcal{D})\| \|h_{t-1}^{(\ell)}(\mathcal{D})\|}$
+    \item \textbf{Mahalanobis Distance ($m_t^{(\ell)}$):} $\sqrt{(h_t^{(\ell)} - \mu_\ell)^\top \Sigma_\ell^{-1} (h_t^{(\ell)} - \mu_\ell)}$
+    \item \textbf{Logit Lens Divergence ($\Lambda_t^{(\ell)}$):} $D_{KL}(\hat{P}_t^{(\ell)}(\mathcal{D}) \| \hat{P}_t^{(\ell)}(\emptyset))$
+    \item \textbf{PCA Deviation ($\rho_t^{(\ell)}$):} $\|h_t^{(\ell)}(\mathcal{D}) - V_\ell V_\ell^\top h_t^{(\ell)}(\mathcal{D})\|_2$
+    \item \textbf{Causal Indirect Effect ($\text{CIE}_c$):} $P_{\mathcal{M}}^{\text{patch}(c)}(y_t^*) - P_{\mathcal{M}}^{\text{corrupt}}(y_t^*)$
+\end{enumerate}
+
+\subsection{Composite Metric}
+The composite score is formed via validation-tuned robust Z-score fusion:
+\begin{equation}
+s_t = \sum_{i=1}^5 w_i \tilde{\phi}_i(t) + w_6 \widetilde{\text{CIE}}_t
+\end{equation}
+
+\section{Experimental Setup \& Results}
+Experiments were evaluated using Qwen-2.5-1.5B on RAGTruth (2,655 test samples, 38.9\% hallucination rate) and zero-shot transfer on HaluEval-QA (19,700 samples).
+
+\begin{table}[h]
+\centering
+\caption{Main Results on RAGTruth Test Set}
+\label{tab:main_results}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Metric / Composite} & \textbf{AUC}$\uparrow$ & \textbf{F1}$\uparrow$ & $\mathbf{\rho}\uparrow$ & \textbf{ECE}$\downarrow$ \\
+\midrule
+Attn. entropy (B1) & 0.6106 & 0.5351 & 0.1869 & 0.2230 \\
+Logit confidence (B2) & 0.5497 & 0.4737 & 0.0839 & 0.1249 \\
+\midrule
++ Cosine drift & 0.5989 & 0.5181 & 0.1670 & 0.0472 \\
++ Mahalanobis & 0.5389 & 0.4528 & 0.0657 & 0.0814 \\
++ Logit lens & 0.5732 & 0.4836 & 0.1237 & 0.1112 \\
++ PCA deviation & 0.5490 & 0.4437 & 0.0828 & 0.0778 \\
++ CIE (top-3 layers) & 0.5138 & 0.4286 & 0.0233 & 0.0824 \\
+\midrule
+\textbf{Full Composite} & \textbf{0.6511} & \textbf{0.5548} & \textbf{0.2553} & \textbf{0.0678} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[h]
+\centering
+\caption{Zero-shot Transfer to HaluEval}
+\label{tab:transfer}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Metric} & \textbf{AUC (RT)} & \textbf{AUC (HE)} & \textbf{Drop} \\
+\midrule
+Full Composite & 0.6508 & 0.6450 & 0.0058 \\
+Cosine drift & 0.6244 & 0.8345 & -0.2102 \\
+Mahalanobis & 0.5190 & 0.7006 & -0.1815 \\
+Logit lens & 0.5917 & 0.4337 & +0.1580 \\
+PCA deviation & 0.5764 & 0.7186 & -0.1421 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Conclusion}
+Internal representation drift provides predictive pre-generation signals for hallucination detection. The composite metric reaches 0.6511 AUROC on RAGTruth and 0.6450 zero-shot AUROC on HaluEval, validating internal hidden-state tracking prior to token emission.
+
+\section*{Appendix: Team Contributions}
+\begin{itemize}
+    \item \textbf{Sanya Wadhawan} (2023A7PS0296U): Methodology framing, dataset setup (§4, §5).
+    \item \textbf{Chirudeva Reddy} (2023A7PS0331U): Setup, experiments, analysis (§6, §12, §13).
+    \item \textbf{Yusra Hakim} (2022A7PS0004U): Related work review (§2).
+    \item \textbf{Joseph Cijo} (2022A7PS0019U): Introduction, results tables, documentation (§1).
+\end{itemize}
+
+\end{document}
