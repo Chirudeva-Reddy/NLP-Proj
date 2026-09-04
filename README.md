@@ -85,11 +85,11 @@ $$\rho_t^{(\ell)} = \Big\lVert h_t^{(\ell)} - V_\ell V_\ell^\top h_t^{(\ell)} \B
 
 </td></tr>
 
-<tr><td><b>5 · Causal IE</b><br><code>CIE_c</code><br><sub>AUROC 0.5138 · localisation</sub></td>
+<tr><td><b>5 · Causal IE</b><br><code>CIE(c)</code><br><sub>AUROC 0.5138 · localisation</sub></td>
 <td>Intervention, not correlation. Swap activations between a faithful and a hallucinated run in both directions and measure the shift in target-token probability.</td>
 <td>
 
-$$\text{CIE}_c = P_{\mathcal{M}}^{\text{patch}(c)}(y_t^{\ast}) - P_{\mathcal{M}}^{\text{corrupt}}(y_t^{\ast})$$
+$$\text{CIE}(c) = P_{\mathcal{M}}^{\text{patch}(c)}(y_t^{\ast}) - P_{\mathcal{M}}^{\text{corrupt}}(y_t^{\ast})$$
 
 </td></tr>
 </table>
