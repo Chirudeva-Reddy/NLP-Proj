@@ -1,0 +1,11 @@
+# Pre-Generation Hallucination Detection via Internal Representation Drift
+# Pinned to the versions used to produce the reported results.
+
+torch>=2.4,<3.0
+transformers>=4.44
+numpy>=1.26
+scipy>=1.11
+scikit-learn>=1.4
+matplotlib>=3.8
+tqdm>=4.66
+certifi>=2024.2.2

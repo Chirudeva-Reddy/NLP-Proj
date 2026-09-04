@@ -1,0 +1,1109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pre-Generation Hallucination Detection — Internal Representation Drift</title>
+<meta name="description" content="Catching RAG hallucinations from a transformer's hidden states before the first wrong token is emitted. Interactive demo, results explorer and causal analysis.">
+<meta property="og:title" content="Pre-Generation Hallucination Detection via Internal Representation Drift">
+<meta property="og:description" content="Five internal drift signals read out of Qwen-2.5's hidden states detect RAG hallucinations before generation. Interactive live demo.">
+<meta property="og:type" content="website">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#07090e; --bg-2:#0b0f17; --panel:#0e1420; --panel-2:#121a28;
+  --line:#1e2a3d;
+  --line-soft:#18222f;
+  --ink:#e8eefb; --ink-2:#a4b3cc; --ink-3:#6c7d99;
+  --accent:#4da3ff; --accent-2:#7c6cff; --hot:#ff5c5c; --warm:#ffb03a; --cool:#3fd0a8;
+  --radius:14px;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --sans:"Inter",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  --maxw:1160px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:74px}
+body{
+  margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
+  font-size:16px;line-height:1.65;-webkit-font-smoothing:antialiased;
+}
+body::before{
+  content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background:
+    radial-gradient(760px 460px at 12% -8%, rgba(77,163,255,.16), transparent 62%),
+    radial-gradient(680px 420px at 92% 4%, rgba(124,108,255,.14), transparent 60%),
+    radial-gradient(900px 600px at 50% 105%, rgba(63,208,168,.07), transparent 60%);
+}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+h1,h2,h3{line-height:1.2;margin:0;letter-spacing:-.02em}
+code,kbd{font-family:var(--mono)}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 22px}
+
+/* ---------- nav ---------- */
+nav{
+  position:sticky;top:0;z-index:50;backdrop-filter:blur(14px);
+  background:rgba(7,9,14,.78);border-bottom:1px solid var(--line-soft);
+}
+nav .wrap{display:flex;align-items:center;gap:20px;height:60px}
+.brand{display:flex;align-items:center;gap:9px;font-weight:700;letter-spacing:-.02em;white-space:nowrap}
+.brand .dot{width:9px;height:9px;border-radius:50%;background:var(--accent);box-shadow:0 0 14px var(--accent)}
+.navlinks{display:flex;gap:4px;margin-left:auto;overflow-x:auto;scrollbar-width:none}
+.navlinks::-webkit-scrollbar{display:none}
+.navlinks a{
+  color:var(--ink-2);font-size:13.5px;font-weight:500;padding:7px 11px;border-radius:8px;white-space:nowrap;
+}
+.navlinks a:hover{color:var(--ink);background:var(--panel);text-decoration:none}
+.ghbtn{
+  display:inline-flex;align-items:center;gap:7px;font-size:13.5px;font-weight:600;
+  padding:7px 13px;border:1px solid var(--line);border-radius:9px;color:var(--ink);background:var(--panel);
+}
+.ghbtn:hover{border-color:var(--accent);text-decoration:none}
+
+/* ---------- hero ---------- */
+header{padding:76px 0 54px;position:relative;overflow:hidden}
+.eyebrow{
+  display:inline-flex;align-items:center;gap:9px;font-family:var(--mono);font-size:12px;
+  letter-spacing:.13em;text-transform:uppercase;color:var(--accent);
+  border:1px solid rgba(77,163,255,.3);background:rgba(77,163,255,.07);
+  padding:6px 13px;border-radius:999px;margin-bottom:22px;
+}
+.pulse{width:7px;height:7px;border-radius:50%;background:var(--cool);animation:pulse 2.2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(63,208,168,.5)}50%{opacity:.65;box-shadow:0 0 0 7px rgba(63,208,168,0)}}
+h1{font-size:clamp(2.1rem,5.4vw,3.6rem);font-weight:800;max-width:19ch}
+h1 .grad{background:linear-gradient(100deg,var(--accent),var(--accent-2) 55%,var(--cool));-webkit-background-clip:text;background-clip:text;color:transparent}
+.lede{margin:22px 0 0;font-size:clamp(1.02rem,2vw,1.18rem);color:var(--ink-2);max-width:66ch}
+.lede strong{color:var(--ink);font-weight:600}
+.meta{margin-top:18px;font-size:13.5px;color:var(--ink-3);font-family:var(--mono)}
+.cta{display:flex;flex-wrap:wrap;gap:11px;margin-top:30px}
+.btn{
+  display:inline-flex;align-items:center;gap:9px;padding:12px 20px;border-radius:11px;
+  font-weight:600;font-size:14.5px;border:1px solid var(--line);background:var(--panel);color:var(--ink);
+  transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease;
+}
+.btn:hover{transform:translateY(-2px);border-color:var(--accent);text-decoration:none;box-shadow:0 10px 30px -14px rgba(77,163,255,.6)}
+.btn.primary{background:linear-gradient(100deg,var(--accent),var(--accent-2));border-color:transparent;color:#050810}
+.btn.primary:hover{box-shadow:0 12px 34px -12px rgba(124,108,255,.85)}
+
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(178px,1fr));gap:12px;margin-top:44px}
+.stat{
+  background:linear-gradient(180deg,var(--panel),rgba(14,20,32,.4));
+  border:1px solid var(--line-soft);border-radius:var(--radius);padding:17px 18px;position:relative;overflow:hidden;
+}
+.stat::after{content:"";position:absolute;left:0;top:0;width:100%;height:2px;background:linear-gradient(90deg,var(--accent),transparent)}
+.stat .k{font-family:var(--mono);font-size:clamp(1.35rem,3vw,1.8rem);font-weight:700;color:var(--ink);letter-spacing:-.03em}
+.stat .l{font-size:12.5px;color:var(--ink-3);margin-top:4px;line-height:1.45}
+
+/* ---------- sections ---------- */
+section{padding:64px 0;border-top:1px solid var(--line-soft)}
+.shead{margin-bottom:30px}
+.snum{font-family:var(--mono);font-size:12px;color:var(--accent);letter-spacing:.16em;text-transform:uppercase}
+h2{font-size:clamp(1.5rem,3.4vw,2.1rem);font-weight:700;margin-top:9px}
+.sub{color:var(--ink-2);margin-top:11px;max-width:74ch;font-size:15.5px}
+
+.card{background:var(--panel);border:1px solid var(--line-soft);border-radius:var(--radius);padding:22px}
+.grid2{display:grid;grid-template-columns:1.35fr .9fr;gap:18px}
+@media(max-width:940px){.grid2{grid-template-columns:1fr}}
+
+/* ---------- controls ---------- */
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{
+  font-family:var(--mono);font-size:12.5px;font-weight:500;padding:7px 13px;border-radius:9px;cursor:pointer;
+  border:1px solid var(--line);background:var(--panel-2);color:var(--ink-2);transition:all .15s ease;
+}
+.chip:hover{color:var(--ink);border-color:var(--ink-3)}
+.chip[aria-pressed="true"]{background:rgba(77,163,255,.14);border-color:var(--accent);color:var(--accent)}
+.label{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);margin-bottom:9px}
+
+/* ---------- pipeline diagram ---------- */
+.diagram{background:var(--panel);border:1px solid var(--line-soft);border-radius:var(--radius);padding:14px;overflow-x:auto}
+.diagram svg{display:block;min-width:660px;width:100%;height:auto}
+.node{cursor:pointer}
+.node rect{transition:all .18s ease}
+.node:hover rect,.node:focus-visible rect{stroke:var(--accent);filter:drop-shadow(0 0 12px rgba(77,163,255,.45))}
+.node.active rect{stroke:var(--accent);stroke-width:2;fill:rgba(77,163,255,.13)}
+.node text{pointer-events:none;font-family:var(--sans);fill:var(--ink)}
+.node .sym{font-family:var(--mono);fill:var(--ink-3)}
+.node.active .sym{fill:var(--accent)}
+.flow{stroke:var(--line);stroke-width:1.6;fill:none}
+.flow.anim{stroke:rgba(77,163,255,.75);stroke-dasharray:5 9;animation:dash 1.5s linear infinite}
+@keyframes dash{to{stroke-dashoffset:-28}}
+.stage rect{fill:var(--panel-2);stroke:var(--line-soft)}
+.stage text{font-family:var(--sans);fill:var(--ink-2)}
+
+.detail{background:var(--panel);border:1px solid var(--line-soft);border-radius:var(--radius);padding:22px;min-height:100%}
+.detail h3{font-size:1.16rem;margin-bottom:4px}
+.detail .tag{font-family:var(--mono);font-size:11.5px;color:var(--accent);letter-spacing:.1em;text-transform:uppercase}
+.formula{
+  font-family:var(--mono);font-size:13px;background:var(--bg-2);border:1px solid var(--line-soft);
+  border-radius:10px;padding:13px;margin:14px 0;color:var(--ink);overflow-x:auto;white-space:pre;line-height:1.7;
+}
+.detail p{color:var(--ink-2);font-size:14.5px;margin:10px 0}
+.kvs{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
+.kv{background:var(--bg-2);border:1px solid var(--line-soft);border-radius:10px;padding:11px 13px}
+.kv .kk{font-size:11px;color:var(--ink-3);font-family:var(--mono);text-transform:uppercase;letter-spacing:.1em}
+.kv .vv{font-family:var(--mono);font-size:16px;font-weight:600;margin-top:3px}
+.bar{height:6px;border-radius:99px;background:var(--bg-2);overflow:hidden;margin-top:9px}
+.bar>i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent-2));border-radius:99px;transition:width .5s cubic-bezier(.2,.8,.2,1)}
+
+/* ---------- demo ---------- */
+.ctx{
+  font-family:var(--mono);font-size:12.8px;line-height:1.75;color:var(--ink-2);
+  background:var(--bg-2);border:1px solid var(--line-soft);border-left:2px solid var(--accent-2);
+  border-radius:10px;padding:13px 15px;max-height:150px;overflow:auto;
+}
+.tokens{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.tok{
+  font-family:var(--mono);font-size:13.5px;padding:5px 7px;border-radius:7px;cursor:default;
+  border:1px solid transparent;transition:transform .12s ease;position:relative;
+}
+.tok:hover{transform:translateY(-2px);border-color:var(--ink-3)}
+.tok.pk{box-shadow:0 0 0 1px var(--warm) inset}
+.legend{display:flex;align-items:center;gap:10px;margin-top:14px;font-size:12px;color:var(--ink-3);font-family:var(--mono)}
+.ramp{height:9px;flex:1;max-width:230px;border-radius:99px;background:linear-gradient(90deg,#16324a,#1f6f8b,#3fd0a8,#ffb03a,#ff5c5c)}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th,td{padding:9px 11px;text-align:right;border-bottom:1px solid var(--line-soft)}
+th{font-family:var(--mono);font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);font-weight:500;white-space:nowrap}
+td:first-child,th:first-child{text-align:left}
+tbody tr:hover{background:rgba(77,163,255,.05)}
+td.mono,.mono{font-family:var(--mono)}
+tr.hl td{background:rgba(77,163,255,.09);font-weight:600;color:var(--ink)}
+.tbl-wrap{overflow-x:auto;border:1px solid var(--line-soft);border-radius:var(--radius);background:var(--panel)}
+.note{
+  border-left:2px solid var(--warm);background:rgba(255,176,58,.06);border-radius:0 10px 10px 0;
+  padding:14px 17px;color:var(--ink-2);font-size:14px;margin-top:18px;
+}
+.note b{color:var(--warm)}
+.badge{font-family:var(--mono);font-size:10.5px;padding:3px 8px;border-radius:99px;letter-spacing:.06em;text-transform:uppercase;font-weight:600}
+.badge.h{background:rgba(255,92,92,.14);color:#ff8b8b;border:1px solid rgba(255,92,92,.3)}
+.badge.g{background:rgba(63,208,168,.13);color:var(--cool);border:1px solid rgba(63,208,168,.3)}
+.badge.m{background:rgba(124,108,255,.14);color:#a99cff;border:1px solid rgba(124,108,255,.3)}
+
+.chart{width:100%;height:auto;display:block;overflow:visible}
+.chart text{font-family:var(--mono);font-size:10.5px;fill:var(--ink-3)}
+.chart .vlab{fill:var(--ink);font-weight:600}
+.gridline{stroke:var(--line-soft);stroke-width:1}
+.gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:16px}
+.fig{background:var(--panel);border:1px solid var(--line-soft);border-radius:var(--radius);overflow:hidden;cursor:zoom-in;transition:transform .18s ease,border-color .18s ease}
+.fig:hover{transform:translateY(-3px);border-color:var(--accent)}
+.fig img{width:100%;display:block;background:#fff}
+.fig .cap{padding:12px 15px;font-size:13px;color:var(--ink-2)}
+.fig .cap b{display:block;color:var(--ink);font-size:13.5px;margin-bottom:2px}
+#lightbox{position:fixed;inset:0;background:rgba(3,5,9,.93);z-index:99;display:none;align-items:center;justify-content:center;padding:28px;cursor:zoom-out}
+#lightbox.on{display:flex}
+#lightbox img{max-width:100%;max-height:100%;border-radius:12px;background:#fff}
+
+pre{
+  background:var(--bg-2);border:1px solid var(--line-soft);border-radius:11px;padding:15px 17px;
+  overflow-x:auto;font-size:13px;line-height:1.65;margin:0;color:var(--ink-2);
+}
+pre .c{color:var(--ink-3)}
+pre .f{color:var(--accent)}
+.codebox{position:relative}
+.copy{
+  position:absolute;top:9px;right:9px;font-family:var(--mono);font-size:11px;padding:5px 10px;border-radius:7px;
+  background:var(--panel-2);border:1px solid var(--line);color:var(--ink-2);cursor:pointer;opacity:0;transition:opacity .15s
+}
+.codebox:hover .copy{opacity:1}
+.copy:hover{color:var(--accent);border-color:var(--accent)}
+details{background:var(--panel);border:1px solid var(--line-soft);border-radius:var(--radius);padding:0;margin-bottom:10px}
+summary{padding:15px 20px;cursor:pointer;font-weight:600;font-size:15px;list-style:none;display:flex;align-items:center;gap:10px}
+summary::-webkit-details-marker{display:none}
+summary::before{content:"▸";color:var(--accent);transition:transform .2s ease;display:inline-block}
+details[open] summary::before{transform:rotate(90deg)}
+details .body{padding:0 20px 20px}
+.people{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}
+.person{background:var(--panel);border:1px solid var(--line-soft);border-radius:var(--radius);padding:17px}
+.person .nm{font-weight:600}
+.person .id{font-family:var(--mono);font-size:11.5px;color:var(--accent);margin:2px 0 8px}
+.person .rl{font-size:13px;color:var(--ink-2);line-height:1.55}
+footer{padding:42px 0 60px;border-top:1px solid var(--line-soft);color:var(--ink-3);font-size:13.5px}
+.tip{
+  position:fixed;z-index:80;pointer-events:none;opacity:0;transition:opacity .12s;
+  background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;
+  font-family:var(--mono);font-size:11.5px;box-shadow:0 18px 40px -16px rgba(0,0,0,.9);max-width:270px;
+}
+.tip.on{opacity:1}
+.tip .th{color:var(--accent);font-weight:700;margin-bottom:6px;font-size:12.5px}
+.tip .tr{display:flex;justify-content:space-between;gap:16px;color:var(--ink-2)}
+.tip .tr b{color:var(--ink);font-weight:600}
+.reveal{opacity:0;transform:translateY(16px)}
+.reveal.in{opacity:1;transform:none;transition:opacity .55s ease,transform .55s cubic-bezier(.2,.8,.2,1)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.reveal{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <div class="brand"><span class="dot"></span> Drift&nbsp;Detector</div>
+    <div class="navlinks">
+      <a href="#how">How it works</a>
+      <a href="#demo">Live demo</a>
+      <a href="#results">Results</a>
+      <a href="#temporal">Pre-onset</a>
+      <a href="#causal">Causality</a>
+      <a href="#transfer">Transfer</a>
+      <a href="#repro">Reproduce</a>
+    </div>
+    <a class="ghbtn" href="https://github.com/Chirudeva-Reddy/NLP-Proj" target="_blank" rel="noopener">
+      <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38v-1.33c-2.23.48-2.7-1.07-2.7-1.07-.36-.93-.89-1.18-.89-1.18-.73-.5.05-.49.05-.49.81.06 1.23.83 1.23.83.72 1.23 1.88.87 2.34.67.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.6 7.6 0 0 1 4 0c1.53-1.03 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.28.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48v2.2c0 .21.15.46.55.38A8 8 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+      Code
+    </a>
+  </div>
+</nav>
+
+<header>
+  <div class="wrap">
+    <div class="eyebrow"><span class="pulse"></span> CS F429 · BITS Pilani Dubai · Interactive Demo</div>
+    <h1>Catching hallucinations <span class="grad">before</span> the model writes them.</h1>
+    <p class="lede">
+      RAG systems fail loudly and fluently. This project detects that failure <strong>pre-generation</strong> — by reading
+      five drift signals out of Qwen-2.5's hidden states while the answer is still forming, instead of judging text after
+      the fact. Internal representation drift peaks at token <strong>t&minus;2</strong>, two positions before the first
+      hallucinated token is emitted.
+    </p>
+    <p class="meta">Qwen2.5-1.5B · RAGTruth (2,655 test responses) · zero-shot transfer to HaluEval-QA</p>
+    <div class="cta">
+      <a class="btn primary" href="#demo">▶ Run the live demo</a>
+      <a class="btn" href="CS_F429_Project_Report.pdf" target="_blank" rel="noopener">📄 Read the paper</a>
+      <a class="btn" href="https://github.com/Chirudeva-Reddy/NLP-Proj" target="_blank" rel="noopener">★ Source code</a>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="k">0.6511</div><div class="l">Composite AUROC on RAGTruth test<br>95% CI [0.6307, 0.6614]</div></div>
+      <div class="stat"><div class="k">+0.0405</div><div class="l">AUROC over the attention-entropy baseline (0.6106)</div></div>
+      <div class="stat"><div class="k">t&minus;2</div><div class="l">Drift peak <em>before</em> onset<br>p = 2.86 &times; 10⁻⁵</div></div>
+      <div class="stat"><div class="k">0.6450</div><div class="l">Zero-shot HaluEval AUROC, no refitting</div></div>
+    </div>
+  </div>
+</header>
+
+<!-- ============ HOW IT WORKS ============ -->
+<section id="how">
+  <div class="wrap">
+    <div class="shead reveal">
+      <div class="snum">01 — Architecture</div>
+      <h2>The pipeline, end to end</h2>
+      <p class="sub">
+        The same prompt is run twice — once with the retrieved evidence, once with an empty context. The difference in how
+        the model's internal state evolves is the signal. <b style="color:var(--ink)">Click any block below</b> to see its
+        formulation, its standalone AUROC and its weight in the frozen composite.
+      </p>
+    </div>
+
+    <div class="grid2">
+      <div class="diagram reveal">
+        <svg viewBox="0 0 700 470" role="img" aria-label="Interactive pipeline diagram">
+          <g class="stage">
+            <rect x="20" y="14" width="660" height="52" rx="10"/>
+            <text x="350" y="37" text-anchor="middle" font-size="13" font-weight="600" fill="#e8eefb">Input prompt — paired forward passes</text>
+            <text x="350" y="55" text-anchor="middle" font-size="11">q + retrieved evidence D  ·vs·  q + empty context ∅</text>
+          </g>
+          <path class="flow anim" d="M350 66 L350 96"/>
+          <g class="stage">
+            <rect x="20" y="96" width="660" height="52" rx="10"/>
+            <text x="350" y="119" text-anchor="middle" font-size="13" font-weight="600" fill="#e8eefb">Hidden-state extraction across depth ℒ*</text>
+            <text x="350" y="137" text-anchor="middle" font-size="11">token-level h⁽ˡ⁾ₜ captured on the last 18 Qwen-2.5 layers via forward hooks</text>
+          </g>
+
+          <path class="flow" d="M350 148 L350 172 M80 172 L620 172 M80 172 L80 196 M215 172 L215 196 M350 172 L350 196 M485 172 L485 196 M620 172 L620 196"/>
+
+          <g class="node" id="n-cosine_drift" tabindex="0" role="button" aria-label="Cosine drift signal">
+            <rect x="24" y="196" width="112" height="72" rx="10" fill="#121a28" stroke="#1e2a3d"/>
+            <text x="80" y="222" text-anchor="middle" font-size="12" font-weight="600">Cosine</text>
+            <text x="80" y="238" text-anchor="middle" font-size="12" font-weight="600">Drift</text>
+            <text class="sym" x="80" y="256" text-anchor="middle" font-size="11">δ⁽ˡ⁾ₜ</text>
+          </g>
+          <g class="node" id="n-mahalanobis" tabindex="0" role="button" aria-label="Mahalanobis distance signal">
+            <rect x="159" y="196" width="112" height="72" rx="10" fill="#121a28" stroke="#1e2a3d"/>
+            <text x="215" y="222" text-anchor="middle" font-size="12" font-weight="600">Mahalanobis</text>
+            <text x="215" y="238" text-anchor="middle" font-size="12" font-weight="600">Distance</text>
+            <text class="sym" x="215" y="256" text-anchor="middle" font-size="11">m⁽ˡ⁾ₜ</text>
+          </g>
+          <g class="node" id="n-logit_lens" tabindex="0" role="button" aria-label="Logit lens divergence signal">
+            <rect x="294" y="196" width="112" height="72" rx="10" fill="#121a28" stroke="#1e2a3d"/>
+            <text x="350" y="222" text-anchor="middle" font-size="12" font-weight="600">Logit Lens</text>
+            <text x="350" y="238" text-anchor="middle" font-size="12" font-weight="600">KL Divergence</text>
+            <text class="sym" x="350" y="256" text-anchor="middle" font-size="11">Λ⁽ˡ⁾ₜ</text>
+          </g>
+          <g class="node" id="n-pca_deviation" tabindex="0" role="button" aria-label="PCA residual deviation signal">
+            <rect x="429" y="196" width="112" height="72" rx="10" fill="#121a28" stroke="#1e2a3d"/>
+            <text x="485" y="222" text-anchor="middle" font-size="12" font-weight="600">PCA Residual</text>
+            <text x="485" y="238" text-anchor="middle" font-size="12" font-weight="600">Deviation</text>
+            <text class="sym" x="485" y="256" text-anchor="middle" font-size="11">ρ⁽ˡ⁾ₜ</text>
+          </g>
+          <g class="node" id="n-cie_top3" tabindex="0" role="button" aria-label="Causal indirect effect signal">
+            <rect x="564" y="196" width="112" height="72" rx="10" fill="#121a28" stroke="#1e2a3d"/>
+            <text x="620" y="222" text-anchor="middle" font-size="12" font-weight="600">Causal</text>
+            <text x="620" y="238" text-anchor="middle" font-size="12" font-weight="600">Patching</text>
+            <text class="sym" x="620" y="256" text-anchor="middle" font-size="11">CIE_c</text>
+          </g>
+
+          <path class="flow" d="M80 268 L80 292 M215 268 L215 292 M350 268 L350 292 M485 268 L485 292 M620 268 L620 292 M80 292 L620 292"/>
+          <path class="flow anim" d="M350 292 L350 320"/>
+
+          <g class="stage node" id="n-composite" tabindex="0" role="button" aria-label="Composite fusion">
+            <rect x="20" y="320" width="660" height="56" rx="10" fill="#121a28" stroke="#1e2a3d"/>
+            <text x="350" y="344" text-anchor="middle" font-size="13" font-weight="600" fill="#e8eefb">Validation-tuned robust z-score fusion</text>
+            <text x="350" y="362" text-anchor="middle" font-size="11">s = Σ wᵢ · (xᵢ − median_train) / IQR_train  →  frozen, never refit on test</text>
+          </g>
+          <path class="flow anim" d="M350 376 L350 404"/>
+          <g class="stage">
+            <rect x="20" y="404" width="660" height="52" rx="10" fill="rgba(77,163,255,.08)" stroke="rgba(77,163,255,.35)"/>
+            <text x="350" y="427" text-anchor="middle" font-size="13" font-weight="600" fill="#e8eefb">Pre-generation hallucination score</text>
+            <text x="350" y="445" text-anchor="middle" font-size="11">token-level risk trace + sample-level decision · AUROC 0.6511</text>
+          </g>
+        </svg>
+      </div>
+
+      <div class="detail reveal" id="signal-detail"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ LIVE DEMO ============ -->
+<section id="demo">
+  <div class="wrap">
+    <div class="shead reveal">
+      <div class="snum">02 — Live demo</div>
+      <h2>Score a real answer, token by token</h2>
+      <p class="sub">
+        These are <b style="color:var(--ink)">real recorded runs</b> — every number below came out of
+        <code>Qwen2.5-1.5B</code> on this repository's frozen <code>stats.pt</code>, exported by
+        <code>scripts/export_demo_json.py</code>. Pick a case, pick a signal, and hover any token to see all seven metrics
+        at that position.
+      </p>
+    </div>
+
+    <div class="card reveal" style="padding:24px">
+      <div class="label">Choose a case</div>
+      <div class="chips" id="run-chips"></div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:24px" id="demo-io">
+        <div>
+          <div class="label">Retrieved context (ground truth)</div>
+          <div class="ctx" id="demo-ctx"></div>
+        </div>
+        <div>
+          <div class="label">Answer under test <span id="demo-mode" style="color:var(--accent)"></span></div>
+          <div class="ctx" id="demo-ans" style="border-left-color:var(--warm)"></div>
+        </div>
+      </div>
+
+      <div style="margin-top:26px" class="label">Colour tokens by signal</div>
+      <div class="chips" id="metric-chips"></div>
+
+      <div class="tokens" id="token-strip" style="margin-top:18px"></div>
+      <div class="legend">
+        <span>low drift</span><span class="ramp"></span><span>high drift</span>
+        <span style="margin-left:auto;color:var(--warm)">▢ top-5 consensus suspects</span>
+      </div>
+
+      <div style="margin-top:26px" class="label">Signal trace across answer positions</div>
+      <svg class="chart" id="trace-chart" viewBox="0 0 900 220" preserveAspectRatio="xMidYMid meet"></svg>
+
+      <div style="display:grid;grid-template-columns:1.25fr .85fr;gap:20px;margin-top:26px" id="demo-bottom">
+        <div>
+          <div class="label">Consensus suspicious-token ranking</div>
+          <div class="tbl-wrap"><table id="consensus-tbl"></table></div>
+        </div>
+        <div>
+          <div class="label">Sample-level aggregate</div>
+          <div class="tbl-wrap"><table id="agg-tbl"></table></div>
+        </div>
+      </div>
+
+      <div class="note">
+        <b>Read this honestly.</b> At 0.65 AUROC this is a research-grade signal, not a shipped guardrail. Two things are
+        visible in the runs above: the ranking is strongly drawn to <em>numeric spans</em>, and in the fabricated Eiffel
+        Tower case those spans (<code>1905</code>, <code>Olympic</code>) are exactly the invented content — but correct
+        dates in grounded answers get flagged too. The sample-level composite separates the two classes only on average,
+        which is precisely what an AUROC of 0.65 means.
+      </div>
+    </div>
+
+    <div class="card reveal" style="margin-top:18px">
+      <div class="label">Run it yourself on any prompt</div>
+      <div class="codebox">
+        <button class="copy" data-copy="python NLP-sub/scripts/live_demo.py --profile local --input-file NLP-sub/examples/live_demo_inputs/eiffel_tower_hallucinated_passage.json --show-aggregates">copy</button>
+<pre><span class="c"># score a supplied context + candidate answer pair</span>
+python NLP-sub/scripts/live_demo.py <span class="f">--profile</span> local \
+  <span class="f">--input-file</span> NLP-sub/examples/live_demo_inputs/eiffel_tower_hallucinated_passage.json \
+  <span class="f">--show-aggregates</span></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ RESULTS ============ -->
+<section id="results">
+  <div class="wrap">
+    <div class="shead reveal">
+      <div class="snum">03 — Benchmark</div>
+      <h2>Results on RAGTruth held-out test</h2>
+      <p class="sub">
+        2,655 test responses, 38.9% hallucination rate, 1,000-iteration bootstrap confidence intervals. Switch the metric
+        to see how the picture changes — the composite does not win on every axis, and calibration error tells a different
+        story from ranking quality.
+      </p>
+    </div>
+    <div class="chips reveal" id="result-metric-chips" style="margin-bottom:20px"></div>
+    <div class="card reveal"><svg class="chart" id="results-chart" viewBox="0 0 900 330" preserveAspectRatio="xMidYMid meet"></svg></div>
+    <div class="tbl-wrap reveal" style="margin-top:18px"><table id="results-tbl"></table></div>
+    <div class="note reveal">
+      <b>Why 0.65 is the honest headline.</b> The composite closes <b>19.51%</b> of the gap between the attention-entropy
+      baseline and ReDeEP (0.82), and <b>16.44%</b> of the gap to LUMINA (0.87) — while using only a single forward pass
+      of a 1.5B model and no external judge. It also cuts expected calibration error from 0.2230 to 0.0678.
+    </div>
+  </div>
+</section>
+
+<!-- ============ TEMPORAL ============ -->
+<section id="temporal">
+  <div class="wrap">
+    <div class="shead reveal">
+      <div class="snum">04 — Pre-onset precedence</div>
+      <h2>The drift arrives before the words do</h2>
+      <p class="sub">
+        Aligning every hallucinated span at its first hallucinated token (t = 0) and looking backwards: cosine drift peaks
+        at <b style="color:var(--warm)">t&minus;2</b> (Mann–Whitney U, p = 2.86 &times; 10⁻⁵). The representation has
+        already left the faithful manifold two tokens before the model commits the error to text — which is the whole
+        premise of pre-generation detection.
+      </p>
+    </div>
+    <div class="chips reveal" id="temporal-chips" style="margin-bottom:20px"></div>
+    <div class="card reveal"><svg class="chart" id="temporal-chart" viewBox="0 0 900 300" preserveAspectRatio="xMidYMid meet"></svg></div>
+    <div class="tbl-wrap reveal" style="margin-top:18px"><table id="temporal-tbl"></table></div>
+  </div>
+</section>
+
+<!-- ============ CAUSAL ============ -->
+<section id="causal">
+  <div class="wrap">
+    <div class="shead reveal">
+      <div class="snum">05 — Causal localisation</div>
+      <h2>Which components actually cause it</h2>
+      <p class="sub">
+        Correlation is cheap; these are interventions. Bidirectional activation patching across 50+ paired examples swaps
+        activations between a faithful and a hallucinated run in both directions and measures the change in target-token
+        probability. Every group below is significant at p &lt; 0.05 — early attention dominates by an order of magnitude.
+      </p>
+    </div>
+    <div class="card reveal"><svg class="chart" id="cie-chart" viewBox="0 0 900 300" preserveAspectRatio="xMidYMid meet"></svg></div>
+    <div class="tbl-wrap reveal" style="margin-top:18px"><table id="cie-tbl"></table></div>
+  </div>
+</section>
+
+<!-- ============ TRANSFER ============ -->
+<section id="transfer">
+  <div class="wrap">
+    <div class="shead reveal">
+      <div class="snum">06 — Zero-shot transfer</div>
+      <h2>Does it survive a domain change?</h2>
+      <p class="sub">
+        The frozen composite — same weights, same training medians and IQRs, nothing re-estimated — applied straight to
+        HaluEval-QA. The fused score barely moves (&minus;0.0058). Individual signals swing wildly in both directions,
+        which is the argument for fusing them in the first place.
+      </p>
+    </div>
+    <div class="card reveal"><svg class="chart" id="transfer-chart" viewBox="0 0 900 320" preserveAspectRatio="xMidYMid meet"></svg></div>
+    <div class="tbl-wrap reveal" style="margin-top:18px"><table id="transfer-tbl"></table></div>
+  </div>
+</section>
+
+<!-- ============ FIGURES ============ -->
+<section id="figures">
+  <div class="wrap">
+    <div class="shead reveal">
+      <div class="snum">07 — Generated figures</div>
+      <h2>Everything the pipeline plots</h2>
+      <p class="sub">Produced directly by the analysis scripts in the repository. Click to enlarge.</p>
+    </div>
+    <div class="gallery reveal">
+      <figure class="fig" style="margin:0"><img loading="lazy" src="images/layer_profile.png" alt="Per-layer AUROC profile"><figcaption class="cap"><b>E2 · Layer profile</b>Point-biserial correlation by depth. Discriminative signal concentrates in Qwen layers 15–25; the top-3 are 21, 23, 22.</figcaption></figure>
+      <figure class="fig" style="margin:0"><img loading="lazy" src="images/temporal_precedence.png" alt="Temporal precedence"><figcaption class="cap"><b>E4 · Temporal precedence</b>Drift signals aligned to the first hallucinated token, showing the t−2 peak.</figcaption></figure>
+      <figure class="fig" style="margin:0"><img loading="lazy" src="images/cie_bidirectional.png" alt="Bidirectional CIE"><figcaption class="cap"><b>E3 · Bidirectional patching</b>Causal indirect effect per component group, faithful→hallucinated and back.</figcaption></figure>
+      <figure class="fig" style="margin:0"><img loading="lazy" src="images/component_drift.png" alt="Component drift"><figcaption class="cap"><b>E6 · Component drift</b>Self-attention vs. FFN contribution to the residual-stream update by layer.</figcaption></figure>
+      <figure class="fig" style="margin:0"><img loading="lazy" src="images/failure_fn_1289.png" alt="False negative trace"><figcaption class="cap"><b>E7 · False negative</b>A hallucination the composite missed — sample 1289.</figcaption></figure>
+      <figure class="fig" style="margin:0"><img loading="lazy" src="images/failure_fp_12310.png" alt="False positive trace"><figcaption class="cap"><b>E7 · False positive</b>A faithful answer that drifted anyway — sample 12310.</figcaption></figure>
+      <figure class="fig" style="margin:0"><img loading="lazy" src="images/failure_disagreement_3574.png" alt="Metric disagreement trace"><figcaption class="cap"><b>E7 · Metric disagreement</b>Where the five signals contradict each other — sample 3574.</figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<!-- ============ REPRODUCE ============ -->
+<section id="repro">
+  <div class="wrap">
+    <div class="shead reveal">
+      <div class="snum">08 — Reproduce</div>
+      <h2>Every number here is regenerable</h2>
+      <p class="sub">Four sequential steps rebuild the headline table from raw model weights. Statistics are fit on train only, frozen, then applied to test.</p>
+    </div>
+
+    <details open class="reveal">
+      <summary>Setup — environment &amp; data</summary>
+      <div class="body">
+        <div class="codebox">
+          <button class="copy" data-copy="git clone https://github.com/Chirudeva-Reddy/NLP-Proj.git && cd NLP-Proj && python3 -m venv .venv && source .venv/bin/activate && pip install -r Requirements.txt">copy</button>
+<pre>git clone https://github.com/Chirudeva-Reddy/NLP-Proj.git &amp;&amp; cd NLP-Proj
+python3 -m venv .venv &amp;&amp; source .venv/bin/activate
+pip install -r Requirements.txt
+
+<span class="c"># place RAGTruth under dataset/ragtruth/ :</span>
+<span class="c">#   response.jsonl      generated answers + character-level hallucination spans</span>
+<span class="c">#   source_info.jsonl   source documents and retrieval context</span></pre>
+        </div>
+      </div>
+    </details>
+
+    <details class="reveal">
+      <summary>Core pipeline — infer → fit → score → eval</summary>
+      <div class="body">
+        <div class="codebox">
+          <button class="copy" data-copy="python NLP-sub/pipeline/1-infer.py --model Qwen/Qwen2.5-1.5B --layers last18 --device auto --output-dir NLP-sub/outputs/artifacts">copy</button>
+<pre><span class="c"># 1 · forward passes, float16 hidden-state artifacts</span>
+python NLP-sub/pipeline/1-infer.py <span class="f">--model</span> Qwen/Qwen2.5-1.5B <span class="f">--layers</span> last18 <span class="f">--device</span> auto \
+  <span class="f">--output-dir</span> NLP-sub/outputs/artifacts
+
+<span class="c"># 2 · fit μ, Σ, V on TRAIN only and freeze composite weights</span>
+python NLP-sub/pipeline/2-fit.py <span class="f">--artifacts-dir</span> NLP-sub/outputs/artifacts \
+  <span class="f">--output</span> NLP-sub/outputs/stats.pt <span class="f">--pca-components</span> 16
+
+<span class="c"># 3 · score the held-out test split with the frozen stats</span>
+python NLP-sub/pipeline/3-score.py <span class="f">--artifacts-dir</span> NLP-sub/outputs/artifacts \
+  <span class="f">--stats</span> NLP-sub/outputs/stats.pt <span class="f">--output-dir</span> NLP-sub/outputs/scores_test <span class="f">--split</span> test
+
+<span class="c"># 4 · AUROC / F1 / Spearman / ECE + 1000-iteration bootstrap CIs</span>
+python NLP-sub/pipeline/4-eval.py <span class="f">--scores-dir</span> NLP-sub/outputs/scores_test \
+  <span class="f">--aggregate</span> max <span class="f">--n-boot</span> 1000</pre>
+        </div>
+      </div>
+    </details>
+
+    <details class="reveal">
+      <summary>Experiments E2–E8 — the figures on this page</summary>
+      <div class="body">
+        <div class="codebox">
+          <button class="copy" data-copy="python NLP-sub/scripts/e3_patching.py --model Qwen/Qwen2.5-1.5B --device auto --output-dir NLP-sub/outputs/e3">copy</button>
+<pre><span class="c"># E2 layer profile · E3 causal patching · E4 temporal precedence</span>
+python NLP-sub/pipeline/plot.py <span class="f">--artifacts-dir</span> NLP-sub/outputs/artifacts/test \
+  <span class="f">--stats</span> NLP-sub/outputs/stats.pt <span class="f">--output</span> docs/images/layer_profile.png
+python NLP-sub/scripts/e3_patching.py <span class="f">--model</span> Qwen/Qwen2.5-1.5B <span class="f">--device</span> auto <span class="f">--output-dir</span> NLP-sub/outputs/e3
+python NLP-sub/scripts/e4_temporal.py
+
+<span class="c"># E5 zero-shot HaluEval · E6 component drift · E7 failures · E8 SOTA gap</span>
+python NLP-sub/scripts/e5_halueval.py <span class="f">--model</span> Qwen/Qwen2.5-1.5B-Instruct <span class="f">--layers</span> last18 <span class="f">--device</span> auto \
+  <span class="f">--stats</span> NLP-sub/outputs/stats.pt <span class="f">--qa-json</span> dataset/halueval/qa_data.json \
+  <span class="f">--artifacts-dir</span> NLP-sub/outputs/halueval_artifacts <span class="f">--scores-dir</span> NLP-sub/outputs/halueval_scores \
+  <span class="f">--ragtruth-scores-dir</span> NLP-sub/outputs/scores_test
+python NLP-sub/scripts/e6_component_drift.py <span class="f">--model</span> Qwen/Qwen2.5-1.5B <span class="f">--device</span> auto \
+  <span class="f">--artifacts-dir</span> NLP-sub/outputs/artifacts/test <span class="f">--output-dir</span> NLP-sub/outputs/e6
+python NLP-sub/scripts/e7_failures.py <span class="f">--model</span> Qwen/Qwen2.5-1.5B <span class="f">--device</span> auto \
+  <span class="f">--scores-dir</span> NLP-sub/outputs/scores_test <span class="f">--stats</span> NLP-sub/outputs/stats.pt \
+  <span class="f">--e6-json</span> NLP-sub/outputs/e6/component_drift.json <span class="f">--output-dir</span> NLP-sub/outputs/e7
+python NLP-sub/scripts/e8_sota_gap.py <span class="f">--scores-dir</span> NLP-sub/outputs/scores_test \
+  <span class="f">--aggregate</span> max <span class="f">--output-dir</span> NLP-sub/outputs/e8</pre>
+        </div>
+      </div>
+    </details>
+
+    <details class="reveal">
+      <summary>Regenerate the data behind this page</summary>
+      <div class="body">
+        <div class="codebox">
+          <button class="copy" data-copy="cd NLP-sub && python scripts/export_demo_json.py --stats outputs/stats.pt --output ../docs/site/demo_runs.json">copy</button>
+<pre><span class="c"># re-scores every example under NLP-sub/examples/live_demo_inputs/</span>
+<span class="c"># and writes docs/site/demo_runs.json, which this page fetches</span>
+cd NLP-sub
+python scripts/export_demo_json.py <span class="f">--stats</span> outputs/stats.pt <span class="f">--output</span> ../docs/site/demo_runs.json</pre>
+        </div>
+      </div>
+    </details>
+  </div>
+</section>
+
+<!-- ============ TEAM ============ -->
+<section id="team">
+  <div class="wrap">
+    <div class="shead reveal">
+      <div class="snum">09 — Team</div>
+      <h2>Authors</h2>
+      <p class="sub">CS F429 Natural Language Processing · BITS Pilani, Dubai Campus · supervised by Prof. Elakkiya Rajasekar · May 2026</p>
+    </div>
+    <div class="people reveal">
+      <div class="person"><div class="nm">Sanya Wadhawan</div><div class="id">2023A7PS0296U</div><div class="rl">Methodology framing, dataset preprocessing, RAGTruth pipeline integration</div></div>
+      <div class="person"><div class="nm">Chirudeva Reddy</div><div class="id">2023A7PS0331U</div><div class="rl">Experimental setup, composite metric fusion, causal patching analysis</div></div>
+      <div class="person"><div class="nm">Yusra Hakim</div><div class="id">2022A7PS0004U</div><div class="rl">Related work survey, mechanistic interpretability literature review</div></div>
+      <div class="person"><div class="nm">Joseph Cijo</div><div class="id">2022A7PS0019U</div><div class="rl">Introduction, result tables, baseline evaluation, final report documentation</div></div>
+    </div>
+    <div class="card reveal" style="margin-top:18px">
+      <div class="label">Cite</div>
+      <div class="codebox">
+        <button class="copy" data-copy="@techreport{wadhawan2026pregen, title={Pre-Generation Hallucination Detection via Internal Representation Drift}, author={Wadhawan, Sanya and Reddy, Chirudeva and Hakim, Yusra and Cijo, Joseph}, institution={BITS Pilani, Dubai Campus}, year={2026}, url={https://github.com/Chirudeva-Reddy/NLP-Proj}}">copy</button>
+<pre>@techreport{wadhawan2026pregen,
+  title       = {Pre-Generation Hallucination Detection via Internal Representation Drift},
+  author      = {Wadhawan, Sanya and Reddy, Chirudeva and Hakim, Yusra and Cijo, Joseph},
+  institution = {BITS Pilani, Dubai Campus},
+  year        = {2026}, month = {May},
+  url         = {https://github.com/Chirudeva-Reddy/NLP-Proj}
+}</pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap" style="display:flex;flex-wrap:wrap;gap:14px;align-items:center">
+    <span>Pre-Generation Hallucination Detection via Internal Representation Drift · MIT licensed</span>
+    <span style="margin-left:auto;display:flex;gap:16px">
+      <a href="https://github.com/Chirudeva-Reddy/NLP-Proj">Repository</a>
+      <a href="CS_F429_Project_Report.pdf">Paper (PDF)</a>
+      <a href="https://github.com/Chirudeva-Reddy/NLP-Proj/blob/main/docs/PIPELINE_RUNBOOK.md">Runbook</a>
+    </span>
+  </div>
+</footer>
+
+<div id="lightbox"><img alt=""></div>
+<div class="tip" id="tip"></div>
+
+<script>
+/* ================= data (published results) ================= */
+const SIGNALS = {
+  cosine_drift:{
+    name:"Cosine Drift", sym:"δ⁽ˡ⁾ₜ", tag:"trajectory instability",
+    formula:"δ⁽ˡ⁾ₜ = 1 − ⟨h⁽ˡ⁾ₜ , h⁽ˡ⁾ₜ₋₁⟩ / (‖h⁽ˡ⁾ₜ‖₂ ‖h⁽ˡ⁾ₜ₋₁‖₂)",
+    desc:"How far the residual stream rotates between consecutive answer tokens. A faithful continuation moves smoothly; a fabrication requires the model to jump to an unrelated region of representation space.",
+    auroc:0.5989, ci:"[0.5772, 0.6201]", ece:0.0472, weight:0.383, pooling:"max over layer 24", inComposite:true
+  },
+  mahalanobis:{
+    name:"Mahalanobis Distance", sym:"m⁽ˡ⁾ₜ", tag:"off-manifold displacement",
+    formula:"m⁽ˡ⁾ₜ = √( (h⁽ˡ⁾ₜ − μ_ℓ)ᵀ Σ_ℓ⁻¹ (h⁽ˡ⁾ₜ − μ_ℓ) )",
+    desc:"Distance from the distribution of faithful hidden states, with μ and Σ estimated strictly on the training split. Answers the question: has this state ever looked like a grounded state?",
+    auroc:0.5389, ci:"[0.5168, 0.5612]", ece:0.0814, weight:0.164, pooling:"max over layer 27", inComposite:true
+  },
+  logit_lens:{
+    name:"Logit Lens Divergence", sym:"Λ⁽ˡ⁾ₜ", tag:"cross-depth disagreement",
+    formula:"P̂⁽ˡ⁾ₜ(·) = softmax( W_U h⁽ˡ⁾ₜ(·) )\nΛ⁽ˡ⁾ₜ = D_KL( P̂⁽ˡ⁾ₜ(D) ‖ P̂⁽ˡ⁾ₜ(∅) )",
+    desc:"Project intermediate layers through the unembedding matrix and compare the vocabulary distribution with evidence against the distribution without it. Large KL means the retrieved context is failing to steer the prediction.",
+    auroc:0.5732, ci:"[0.5510, 0.5954]", ece:0.1112, weight:0.206, pooling:"mean over layers 24–25", inComposite:true
+  },
+  pca_deviation:{
+    name:"PCA Residual Deviation", sym:"ρ⁽ˡ⁾ₜ", tag:"subspace escape",
+    formula:"ρ⁽ˡ⁾ₜ = ‖ h⁽ˡ⁾ₜ − V_ℓ V_ℓᵀ h⁽ˡ⁾ₜ ‖₂",
+    desc:"Energy that falls outside the low-dimensional subspace spanned by faithful activations (16 components, fit on train). Complementary to Mahalanobis: it measures direction rather than scaled distance.",
+    auroc:0.5490, ci:"[0.5269, 0.5711]", ece:0.0778, weight:0.247, pooling:"max over layer 25", inComposite:true
+  },
+  cie_top3:{
+    name:"Causal Indirect Effect", sym:"CIE_c", tag:"intervention, not correlation",
+    formula:"CIE_c = P_M^patch(c)(y*ₜ) − P_M^corrupt(y*ₜ)",
+    desc:"Bidirectional activation patching on the top-3 discriminative layers: swap activations between a faithful and a hallucinated run and measure the shift in target-token probability. Used for causal localisation and reported per token — it is not one of the four features fused into the frozen composite.",
+    auroc:0.5138, ci:"[0.4916, 0.5360]", ece:0.0824, weight:0, pooling:"top-3 layers 21, 23, 22", inComposite:false
+  },
+  composite:{
+    name:"Composite Fusion", sym:"s = Σ wᵢ zᵢ", tag:"the deployed detector",
+    formula:"zᵢ = (xᵢ − median_train,ᵢ) / IQR_train,ᵢ\ns   = 0.383·z_cos + 0.247·z_pca + 0.206·z_lens + 0.164·z_mahal",
+    desc:"Robust z-scores against training-split medians and IQRs, fused with weights tuned once on validation and then frozen. No test-set statistic is ever touched — the weights, medians and IQRs shipped in stats.pt are the ones used for every number on this page.",
+    auroc:0.6511, ci:"[0.6307, 0.6614]", ece:0.0678, weight:1, pooling:"weights read from outputs/stats.pt", inComposite:true
+  }
+};
+
+const RESULTS = [
+  {n:"Attention Entropy (B1)",     k:"baseline",  auroc:0.6106, lo:0.5891, hi:0.6318, f1:0.5351, sp:0.1869, ece:0.2230},
+  {n:"Logit Confidence (B2)",      k:"baseline",  auroc:0.5497, lo:0.5274, hi:0.5716, f1:0.4737, sp:0.0839, ece:0.1249},
+  {n:"Cosine Drift",               k:"signal",    auroc:0.5989, lo:0.5772, hi:0.6201, f1:0.5181, sp:0.1670, ece:0.0472},
+  {n:"Mahalanobis Distance",       k:"signal",    auroc:0.5389, lo:0.5168, hi:0.5612, f1:0.4528, sp:0.0657, ece:0.0814},
+  {n:"Logit Lens Divergence",      k:"signal",    auroc:0.5732, lo:0.5510, hi:0.5954, f1:0.4836, sp:0.1237, ece:0.1112},
+  {n:"PCA Deviation",              k:"signal",    auroc:0.5490, lo:0.5269, hi:0.5711, f1:0.4437, sp:0.0828, ece:0.0778},
+  {n:"CIE (Top-3 Layers)",         k:"signal",    auroc:0.5138, lo:0.4916, hi:0.5360, f1:0.4286, sp:0.0233, ece:0.0824},
+  {n:"Full Composite Detector",    k:"composite", auroc:0.6511, lo:0.6307, hi:0.6614, f1:0.5548, sp:0.2553, ece:0.0678}
+];
+
+const TEMPORAL = {
+  offsets:["t−3","t−2","t−1","t","t+1"],
+  peak:1,
+  series:{
+    cosine_drift:{label:"Cosine Drift δ",     v:[0.2668,0.2872,0.2821,0.2729,0.2708]},
+    mahalanobis: {label:"Mahalanobis m",      v:[37.9664,34.0917,31.4590,36.5722,38.1772]},
+    logit_lens:  {label:"Logit Lens Λ",       v:[3.6684,3.5820,4.2375,3.8713,3.5158]},
+    spearman:    {label:"Spearman ρ",         v:[87.4574,80.0704,72.2008,85.6095,88.1041]},
+    cie:         {label:"CIE signal",         v:[37.7385,35.6801,31.7477,36.3971,38.2783]}
+  }
+};
+
+const CIE = [
+  {g:"Early Attention", l:"1–25%",     fh:-1.0991, hf:-1.0782},
+  {g:"Mid FFN",         l:"26–75%",    fh:-0.0550, hf:-0.0299},
+  {g:"Late FFN",        l:"76–100%",   fh:-0.2732, hf:-0.1608},
+  {g:"Copying Heads",   l:"last 25%",  fh:-0.0807, hf:-0.0358}
+];
+
+const TRANSFER = [
+  {n:"Full Composite",          rt:0.6508, he:0.6450, note:"robust"},
+  {n:"Cosine Drift",            rt:0.6244, he:0.8345, note:"transfers up"},
+  {n:"Mahalanobis Distance",    rt:0.5190, he:0.7006, note:"transfers up"},
+  {n:"Logit Lens Divergence",   rt:0.5917, he:0.4337, note:"brittle"},
+  {n:"PCA Residual Deviation",  rt:0.5764, he:0.7186, note:"transfers up"}
+];
+
+const RUN_META = {
+  eiffel_tower_hallucinated_passage:{t:"Eiffel Tower", s:"fabricated city, date and event", cls:"h", lab:"hallucinated"},
+  moon_landing_score_provided:      {t:"Apollo 11",    s:"faithful to the retrieved context", cls:"g", lab:"grounded"},
+  penicillin_score_provided:        {t:"Penicillin",   s:"faithful to the retrieved context", cls:"g", lab:"grounded"},
+  insulin_score_provided:           {t:"Insulin",      s:"faithful to the retrieved context", cls:"g", lab:"grounded"},
+  generate_then_score_no_passage:   {t:"Genome Project", s:"model wrote the answer itself", cls:"m", lab:"model-generated"}
+};
+const RUN_ORDER = ["eiffel_tower_hallucinated_passage","moon_landing_score_provided","penicillin_score_provided","insulin_score_provided","generate_then_score_no_passage"];
+const METRIC_LABEL = {
+  consensus:"Consensus rank", cosine_drift:"Cosine drift", mahalanobis:"Mahalanobis",
+  logit_lens:"Logit lens KL", pca_deviation:"PCA residual", cie_top3:"CIE (top-3)",
+  attention_entropy:"Attention entropy", logit_confidence:"Logit confidence"
+};
+const DEMO_METRICS = ["consensus","cosine_drift","mahalanobis","logit_lens","pca_deviation","cie_top3","attention_entropy","logit_confidence"];
+
+/* ================= helpers ================= */
+const $ = s => document.querySelector(s);
+const el = (t,a={},...kids)=>{
+  const n = a.ns ? document.createElementNS(a.ns,t) : document.createElement(t);
+  for(const[k,v] of Object.entries(a)){if(k==="ns")continue;if(k==="text")n.textContent=v;else n.setAttribute(k,v);}
+  kids.forEach(c=>n.appendChild(c));return n;};
+const S=(t,a={},...k)=>el(t,{...a,ns:"http://www.w3.org/2000/svg"},...k);
+const fmt=(v,d=4)=>Number(v).toFixed(d);
+const cleanTok=s=>s.replace(/<sp>/g," ").replace(/<space>/g,"␣").replace(/<empty>/g,"∅").replace(/\\n/g,"⏎");
+
+function heat(t){ // 0..1 -> colour
+  const stops=[[22,50,74],[31,111,139],[63,208,168],[255,176,58],[255,92,92]];
+  const x=Math.max(0,Math.min(1,t))*(stops.length-1), i=Math.floor(x), f=x-i;
+  const a=stops[i], b=stops[Math.min(i+1,stops.length-1)];
+  return `rgb(${a.map((c,j)=>Math.round(c+(b[j]-c)*f)).join(",")})`;
+}
+function chipRow(host,items,active,onPick){
+  host.innerHTML="";
+  items.forEach(it=>{
+    const b=el("button",{class:"chip",type:"button","aria-pressed":String(it.id===active)});
+    b.innerHTML=it.html||it.label;
+    b.onclick=()=>onPick(it.id);
+    host.appendChild(b);
+  });
+}
+function table(host,head,rows,hlIdx=-1){
+  host.innerHTML="";
+  const th=el("thead"),tr=el("tr");
+  head.forEach(h=>tr.appendChild(el("th",{text:h})));
+  th.appendChild(tr);host.appendChild(th);
+  const tb=el("tbody");
+  rows.forEach((r,i)=>{
+    const row=el("tr",i===hlIdx?{class:"hl"}:{});
+    r.forEach((c,j)=>{
+      const td=el("td",j?{class:"mono"}:{});
+      if(c instanceof Node) td.appendChild(c); else td.innerHTML=c;
+      row.appendChild(td);
+    });
+    tb.appendChild(row);
+  });
+  host.appendChild(tb);
+}
+
+/* ================= 01 pipeline ================= */
+let activeSignal="composite";
+function renderSignal(id){
+  activeSignal=id;
+  document.querySelectorAll(".node").forEach(n=>n.classList.toggle("active",n.id==="n-"+id));
+  const s=SIGNALS[id], d=$("#signal-detail");
+  d.innerHTML="";
+  d.appendChild(el("div",{class:"tag",text:s.tag}));
+  d.appendChild(el("h3",{text:s.name}));
+  d.appendChild(el("div",{class:"formula",text:s.formula}));
+  d.appendChild(el("p",{text:s.desc}));
+  const kvs=el("div",{class:"kvs"});
+  const mk=(k,v,barPct)=>{
+    const b=el("div",{class:"kv"});
+    b.appendChild(el("div",{class:"kk",text:k}));
+    b.appendChild(el("div",{class:"vv",text:v}));
+    if(barPct!==undefined){const bar=el("div",{class:"bar"});const i=el("i");i.style.width=barPct+"%";bar.appendChild(i);b.appendChild(bar);}
+    return b;
+  };
+  kvs.appendChild(mk("Test AUROC",fmt(s.auroc),(s.auroc-0.5)/0.2*100));
+  kvs.appendChild(mk("95% CI",s.ci));
+  kvs.appendChild(mk("Calib. error (ECE)",fmt(s.ece)));
+  kvs.appendChild(mk(s.inComposite&&id!=="composite"?"Composite weight":"Layer selection",
+    s.inComposite&&id!=="composite"?fmt(s.weight,3):"—"));
+  d.appendChild(kvs);
+  d.appendChild(el("p",{class:"mono",text:"▸ "+s.pooling,style:"font-size:12.5px;color:var(--ink-3);margin-top:14px"}));
+  if(!s.inComposite) d.appendChild(el("div",{class:"note",text:"Not fused into the composite — CIE is computed per token for causal analysis, while the deployed score fuses the four representation signals."}));
+}
+document.querySelectorAll(".node").forEach(n=>{
+  const id=n.id.slice(2);
+  n.addEventListener("click",()=>renderSignal(id));
+  n.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();renderSignal(id);}});
+});
+renderSignal("composite");
+
+/* ================= 02 live demo ================= */
+let DATA=null, run=null, metric="consensus";
+const tip=$("#tip");
+function showTip(e,html){tip.innerHTML=html;tip.classList.add("on");
+  const r=tip.getBoundingClientRect();
+  tip.style.left=Math.min(e.clientX+14,innerWidth-r.width-12)+"px";
+  tip.style.top=Math.max(10,e.clientY-r.height-12)+"px";}
+function hideTip(){tip.classList.remove("on")}
+
+function renderDemo(){
+  const r=DATA.runs.find(x=>x.id===run), m=RUN_META[run];
+  $("#demo-ctx").textContent=r.context;
+  $("#demo-ans").textContent=r.response.trim();
+  $("#demo-mode").textContent="· "+r.mode.replace(/_/g," ");
+
+  const vals=r.tokens.map(t=>t[metric]);
+  const lo=Math.min(...vals), hi=Math.max(...vals), span=(hi-lo)||1;
+  const top5=new Set([...r.tokens].sort((a,b)=>b.consensus-a.consensus).slice(0,5).map(t=>t.idx));
+
+  const strip=$("#token-strip"); strip.innerHTML="";
+  r.tokens.forEach(t=>{
+    const n=(t[metric]-lo)/span;
+    const b=el("span",{class:"tok"+(top5.has(t.idx)?" pk":""),text:cleanTok(t.token)});
+    b.style.background=heat(n);
+    b.style.color=n>0.55?"#0b0f17":"#dfe8f7";
+    b.onmousemove=e=>showTip(e,
+      `<div class="th">#${t.idx} · ${cleanTok(t.token).trim()||"␣"}</div>`+
+      DEMO_METRICS.map(k=>`<div class="tr"><span>${METRIC_LABEL[k]}</span><b>${fmt(t[k],k==="consensus"||k==="cosine_drift"?4:2)}</b></div>`).join(""));
+    b.onmouseleave=hideTip;
+    strip.appendChild(b);
+  });
+
+  traceChart(r,vals,lo,hi,top5);
+
+  const ranked=[...r.tokens].sort((a,b)=>b.consensus-a.consensus).slice(0,8);
+  table($("#consensus-tbl"),["#","Token","Consensus","Mahalanobis","Logit lens","PCA resid."],
+    ranked.map(t=>[String(t.idx),`<span class="mono">${cleanTok(t.token).trim()||"␣"}</span>`,
+      fmt(t.consensus),fmt(t.mahalanobis,2),fmt(t.logit_lens,2),fmt(t.pca_deviation,2)]),0);
+
+  const a=r.aggregates.max, f=r.sample_features;
+  table($("#agg-tbl"),["Aggregate","Value"],[
+    [`<b>Composite score</b>`,`<b style="color:${a.composite>0.3?"var(--hot)":"var(--cool)"}">${fmt(a.composite)}</b>`],
+    ["Ground truth",`<span class="badge ${m.cls}">${m.lab}</span>`],
+    ["Answer tokens",String(r.tokens.length)],
+    ["Cosine drift (sample)",fmt(f.cosine_drift)],
+    ["Mahalanobis (sample)",fmt(f.mahalanobis,2)],
+    ["Logit lens (sample)",fmt(f.logit_lens,2)],
+    ["PCA residual (sample)",fmt(f.pca_deviation,2)]
+  ]);
+}
+
+function traceChart(r,vals,lo,hi,top5){
+  const svg=$("#trace-chart"); svg.innerHTML="";
+  const W=900,H=220,L=54,R=16,T=16,B=34, iw=W-L-R, ih=H-T-B;
+  const n=vals.length, span=(hi-lo)||1;
+  const X=i=>L+(n<2?iw/2:i*iw/(n-1)), Y=v=>T+ih-((v-lo)/span)*ih;
+  for(let i=0;i<=4;i++){const y=T+ih*i/4;
+    svg.appendChild(S("line",{x1:L,x2:W-R,y1:y,y2:y,class:"gridline"}));
+    svg.appendChild(S("text",{x:L-9,y:y+3.5,"text-anchor":"end",text:fmt(hi-(hi-lo)*i/4,2)}));}
+  const area=S("path",{d:`M${X(0)},${T+ih} `+vals.map((v,i)=>`L${X(i)},${Y(v)}`).join(" ")+` L${X(n-1)},${T+ih} Z`,
+    fill:"url(#tg)",opacity:".35"});
+  const defs=S("defs"); const g=S("linearGradient",{id:"tg",x1:"0",y1:"0",x2:"0",y2:"1"});
+  g.appendChild(S("stop",{offset:"0%","stop-color":"#4da3ff","stop-opacity":".7"}));
+  g.appendChild(S("stop",{offset:"100%","stop-color":"#4da3ff","stop-opacity":"0"}));
+  defs.appendChild(g); svg.appendChild(defs); svg.appendChild(area);
+  svg.appendChild(S("path",{d:vals.map((v,i)=>`${i?"L":"M"}${X(i)},${Y(v)}`).join(" "),
+    fill:"none",stroke:"#4da3ff","stroke-width":"2","stroke-linejoin":"round"}));
+  vals.forEach((v,i)=>{
+    const c=S("circle",{cx:X(i),cy:Y(v),r:top5.has(i)?4.5:3,
+      fill:top5.has(i)?"#ffb03a":"#4da3ff",stroke:"#0b0f17","stroke-width":"1.5"});
+    c.style.cursor="pointer";
+    c.addEventListener("mousemove",e=>showTip(e,
+      `<div class="th">#${i} · ${cleanTok(r.tokens[i].token).trim()||"␣"}</div>`+
+      `<div class="tr"><span>${METRIC_LABEL[metric]}</span><b>${fmt(v,4)}</b></div>`));
+    c.addEventListener("mouseleave",hideTip);
+    svg.appendChild(c);
+  });
+  const step=Math.max(1,Math.ceil(n/16));
+  r.tokens.forEach((t,i)=>{if(i%step)return;
+    svg.appendChild(S("text",{x:X(i),y:H-12,"text-anchor":"middle",
+      text:(cleanTok(t.token).trim()||"␣").slice(0,7)}));});
+  svg.appendChild(S("text",{x:L,y:H-1,"text-anchor":"start",text:METRIC_LABEL[metric]+" per answer token →",fill:"#6c7d99"}));
+}
+
+/* ================= 03 results ================= */
+let rMetric="auroc";
+const R_META={auroc:{l:"AUROC ↑",min:0.48,max:0.70,ci:true},f1:{l:"F1 span ↑",min:0.40,max:0.60},
+  sp:{l:"Spearman ρ ↑",min:0,max:0.28},ece:{l:"Calibration error ↓",min:0,max:0.24,inv:true}};
+function resultsChart(){
+  const svg=$("#results-chart"); svg.innerHTML="";
+  const W=900,H=330,L=190,R=52,T=14,B=30, iw=W-L-R, ih=H-T-B;
+  const m=R_META[rMetric], bh=ih/RESULTS.length, X=v=>L+((v-m.min)/(m.max-m.min))*iw;
+  for(let i=0;i<=5;i++){const v=m.min+(m.max-m.min)*i/5, x=X(v);
+    svg.appendChild(S("line",{x1:x,x2:x,y1:T,y2:T+ih,class:"gridline"}));
+    svg.appendChild(S("text",{x:x,y:H-12,"text-anchor":"middle",text:v.toFixed(2)}));}
+  if(rMetric==="auroc"){const x=X(0.5);
+    svg.appendChild(S("line",{x1:x,x2:x,y1:T,y2:T+ih,stroke:"#ff5c5c","stroke-width":"1.4","stroke-dasharray":"4 4",opacity:".65"}));
+    svg.appendChild(S("text",{x:x+5,y:T+11,text:"chance",fill:"#ff5c5c"}));}
+  RESULTS.forEach((r,i)=>{
+    const y=T+i*bh+bh*0.22, h=bh*0.56, v=r[rMetric], w=Math.max(2,X(v)-L);
+    const col=r.k==="composite"?"#4da3ff":r.k==="baseline"?"#6c7d99":"#7c6cff";
+    svg.appendChild(S("text",{x:L-12,y:y+h/2+4,"text-anchor":"end",
+      text:r.n,fill:r.k==="composite"?"#e8eefb":"#a4b3cc","font-weight":r.k==="composite"?"700":"400"}));
+    const rect=S("rect",{x:L,y:y,width:w,height:h,rx:5,fill:col,opacity:r.k==="composite"?".95":".62"});
+    rect.appendChild(S("title",{text:`${r.n} — ${m.l}: ${fmt(v)}`}));
+    svg.appendChild(rect);
+    if(m.ci){const x1=X(r.lo),x2=X(r.hi),yc=y+h/2;
+      svg.appendChild(S("line",{x1:x1,x2:x2,y1:yc,y2:yc,stroke:"#e8eefb","stroke-width":"1.4",opacity:".75"}));
+      [x1,x2].forEach(x=>svg.appendChild(S("line",{x1:x,x2:x,y1:yc-5,y2:yc+5,stroke:"#e8eefb","stroke-width":"1.4",opacity:".75"})));}
+    svg.appendChild(S("text",{x:X(v)+9,y:y+h/2+4,class:"vlab",text:fmt(v)}));
+  });
+  table($("#results-tbl"),["Detector","AUROC ↑","95% CI","F1 span ↑","Spearman ρ ↑","ECE ↓"],
+    RESULTS.map(r=>[r.k==="composite"?`<b>${r.n}</b>`:r.n,fmt(r.auroc),`[${fmt(r.lo)}, ${fmt(r.hi)}]`,fmt(r.f1),fmt(r.sp),fmt(r.ece)]),
+    RESULTS.length-1);
+}
+
+/* ================= 04 temporal ================= */
+let tKey="cosine_drift";
+function temporalChart(){
+  const svg=$("#temporal-chart"); svg.innerHTML="";
+  const s=TEMPORAL.series[tKey], v=s.v;
+  const W=900,H=300,L=72,R=30,T=26,B=48, iw=W-L-R, ih=H-T-B;
+  const lo=Math.min(...v), hi=Math.max(...v), pad=(hi-lo)*0.28||1;
+  const mn=lo-pad, mx=hi+pad;
+  const X=i=>L+i*iw/(v.length-1), Y=x=>T+ih-((x-mn)/(mx-mn))*ih;
+  for(let i=0;i<=4;i++){const y=T+ih*i/4;
+    svg.appendChild(S("line",{x1:L,x2:W-R,y1:y,y2:y,class:"gridline"}));
+    svg.appendChild(S("text",{x:L-10,y:y+3.5,"text-anchor":"end",text:(mx-(mx-mn)*i/4).toFixed(hi<2?4:2)}));}
+  const onset=X(3);
+  svg.appendChild(S("line",{x1:onset,x2:onset,y1:T,y2:T+ih,stroke:"#ff5c5c","stroke-width":"1.4","stroke-dasharray":"5 5",opacity:".8"}));
+  svg.appendChild(S("text",{x:onset+7,y:T+12,text:"first hallucinated token",fill:"#ff5c5c"}));
+  const defs=S("defs"),g=S("linearGradient",{id:"tg2",x1:"0",y1:"0",x2:"0",y2:"1"});
+  g.appendChild(S("stop",{offset:"0%","stop-color":"#7c6cff","stop-opacity":".55"}));
+  g.appendChild(S("stop",{offset:"100%","stop-color":"#7c6cff","stop-opacity":"0"}));
+  defs.appendChild(g);svg.appendChild(defs);
+  svg.appendChild(S("path",{d:`M${X(0)},${T+ih} `+v.map((x,i)=>`L${X(i)},${Y(x)}`).join(" ")+` L${X(v.length-1)},${T+ih} Z`,fill:"url(#tg2)"}));
+  svg.appendChild(S("path",{d:v.map((x,i)=>`${i?"L":"M"}${X(i)},${Y(x)}`).join(" "),fill:"none",stroke:"#7c6cff","stroke-width":"2.5","stroke-linejoin":"round"}));
+  v.forEach((x,i)=>{
+    const isPeak=(tKey==="cosine_drift"&&i===TEMPORAL.peak);
+    svg.appendChild(S("circle",{cx:X(i),cy:Y(x),r:isPeak?7:4.5,fill:isPeak?"#ffb03a":"#7c6cff",stroke:"#0b0f17","stroke-width":"2"}));
+    svg.appendChild(S("text",{x:X(i),y:Y(x)-15,"text-anchor":"middle",class:"vlab",text:x.toFixed(hi<2?4:2)}));
+    svg.appendChild(S("text",{x:X(i),y:H-20,"text-anchor":"middle",text:TEMPORAL.offsets[i],
+      fill:isPeak?"#ffb03a":"#6c7d99","font-weight":isPeak?"700":"400"}));
+  });
+  if(tKey==="cosine_drift")
+    svg.appendChild(S("text",{x:X(1),y:H-5,"text-anchor":"middle",text:"◄ peak, p = 2.86e−5",fill:"#ffb03a"}));
+  svg.appendChild(S("text",{x:L,y:14,text:s.label,fill:"#a4b3cc"}));
+  const rows=TEMPORAL.offsets.map((o,i)=>[
+    i===1?`<b>${o} (peak)</b>`:o,
+    fmt(TEMPORAL.series.cosine_drift.v[i]),fmt(TEMPORAL.series.mahalanobis.v[i]),
+    fmt(TEMPORAL.series.logit_lens.v[i]),fmt(TEMPORAL.series.spearman.v[i]),fmt(TEMPORAL.series.cie.v[i])]);
+  table($("#temporal-tbl"),["Offset","Cosine drift δ","Mahalanobis m","Logit lens Λ","Spearman ρ","CIE"],rows,1);
+}
+
+/* ================= 05 causal ================= */
+function cieChart(){
+  const svg=$("#cie-chart"); svg.innerHTML="";
+  const W=900,H=300,L=124,R=30,T=34,B=44, iw=W-L-R, ih=H-T-B;
+  const mn=-1.2, mx=0.05, X=v=>L+((v-mn)/(mx-mn))*iw, gh=ih/CIE.length;
+  for(let i=0;i<=5;i++){const v=mn+(mx-mn)*i/5,x=X(v);
+    svg.appendChild(S("line",{x1:x,x2:x,y1:T,y2:T+ih,class:"gridline"}));
+    svg.appendChild(S("text",{x:x,y:H-16,"text-anchor":"middle",text:v.toFixed(2)}));}
+  const zero=X(0);
+  svg.appendChild(S("line",{x1:zero,x2:zero,y1:T,y2:T+ih,stroke:"#2a3a52","stroke-width":"1.5"}));
+  [["#4da3ff","faithful → hallucinated"],["#7c6cff","hallucinated → faithful"]].forEach((c,i)=>{
+    svg.appendChild(S("rect",{x:L+i*210,y:10,width:11,height:11,rx:3,fill:c[0]}));
+    svg.appendChild(S("text",{x:L+i*210+17,y:20,text:c[1],fill:"#a4b3cc"}));});
+  CIE.forEach((c,i)=>{
+    const y0=T+i*gh+gh*0.18, bh=gh*0.28;
+    svg.appendChild(S("text",{x:L-12,y:y0+bh+2,"text-anchor":"end",text:c.g,fill:"#e8eefb","font-weight":"600"}));
+    svg.appendChild(S("text",{x:L-12,y:y0+bh+15,"text-anchor":"end",text:c.l,fill:"#6c7d99"}));
+    [[c.fh,"#4da3ff",0],[c.hf,"#7c6cff",1]].forEach(([v,col,k])=>{
+      const y=y0+k*(bh+3), x=X(v), w=zero-x;
+      const rect=S("rect",{x:x,y:y,width:Math.max(2,w),height:bh,rx:4,fill:col,opacity:".85"});
+      rect.appendChild(S("title",{text:`${c.g} — CIE ${fmt(v)}`}));
+      svg.appendChild(rect);
+      svg.appendChild(S("text",{x:x-7,y:y+bh-2,"text-anchor":"end",class:"vlab",text:fmt(v)}));});
+  });
+  svg.appendChild(S("text",{x:(L+W-R)/2,y:H-2,"text-anchor":"middle",text:"causal indirect effect on target-token probability (more negative = stronger causal role)",fill:"#6c7d99"}));
+  table($("#cie-tbl"),["Component group","Layers","CIE (f→h)","CIE (h→f)","Significant"],
+    CIE.map(c=>[c.g,c.l,fmt(c.fh),fmt(c.hf),'<span style="color:var(--cool)">yes · p &lt; 0.05</span>']));
+}
+
+/* ================= 06 transfer ================= */
+function transferChart(){
+  const svg=$("#transfer-chart"); svg.innerHTML="";
+  const W=900,H=320,L=210,R=210,T=40,B=34, ih=H-T-B;
+  const mn=0.40,mx=0.86, Y=v=>T+ih-((v-mn)/(mx-mn))*ih;
+  [["RAGTruth (in-domain)",L],["HaluEval-QA (zero-shot)",W-R]].forEach(([t,x])=>{
+    svg.appendChild(S("line",{x1:x,x2:x,y1:T,y2:T+ih,stroke:"#2a3a52","stroke-width":"1.5"}));
+    svg.appendChild(S("text",{x:x,y:T-16,"text-anchor":"middle",text:t,fill:"#e8eefb","font-weight":"600","font-size":"11.5"}));});
+  for(let i=0;i<=4;i++){const v=mn+(mx-mn)*i/4,y=Y(v);
+    svg.appendChild(S("line",{x1:L,x2:W-R,y1:y,y2:y,class:"gridline",opacity:".5"}));
+    svg.appendChild(S("text",{x:L-52,y:y+3.5,"text-anchor":"end",text:v.toFixed(2)}));}
+  TRANSFER.forEach(t=>{
+    const isC=t.n==="Full Composite", col=isC?"#4da3ff":t.note==="brittle"?"#ff5c5c":"#3fd0a8";
+    svg.appendChild(S("line",{x1:L,x2:W-R,y1:Y(t.rt),y2:Y(t.he),stroke:col,
+      "stroke-width":isC?3.2:1.8,opacity:isC?1:.6}));
+    [[L,t.rt,"end",-12],[W-R,t.he,"start",12]].forEach(([x,v,an,dx])=>{
+      svg.appendChild(S("circle",{cx:x,cy:Y(v),r:isC?6:4,fill:col,stroke:"#0b0f17","stroke-width":"2"}));
+      svg.appendChild(S("text",{x:x+dx,y:Y(v)+3.5,"text-anchor":an,
+        text:(an==="end"?t.n+"  ":"")+fmt(v)+(an==="start"?"  "+t.n:""),
+        fill:isC?"#e8eefb":"#a4b3cc","font-weight":isC?"700":"400"}));});
+  });
+  table($("#transfer-tbl"),["Detector","RAGTruth AUROC","HaluEval AUROC","Δ (RAGTruth − HaluEval)","Behaviour"],
+    TRANSFER.map(t=>{const d=t.rt-t.he;
+      return [t.n==="Full Composite"?`<b>${t.n}</b>`:t.n,fmt(t.rt),fmt(t.he),
+        `${d>0?"+":""}${fmt(d)}`,
+        `<span style="color:${t.note==="brittle"?"var(--hot)":"var(--cool)"}">${t.note}</span>`];}),0);
+}
+
+/* ================= boot ================= */
+(function(){
+  const items=Object.entries(R_META).map(([id,m])=>({id,label:m.l}));
+  const draw=id=>{rMetric=id;chipRow($("#result-metric-chips"),items,rMetric,draw);resultsChart();};
+  chipRow($("#result-metric-chips"),items,rMetric,draw);
+})();
+resultsChart();
+
+(function(){
+  const items=Object.entries(TEMPORAL.series).map(([id,s])=>({id,label:s.label}));
+  const draw=id=>{tKey=id;chipRow($("#temporal-chips"),items,tKey,draw);temporalChart();};
+  chipRow($("#temporal-chips"),items,tKey,draw);
+})();
+temporalChart();
+cieChart();
+transferChart();
+
+const QS=new URLSearchParams(location.search);
+fetch("site/demo_runs.json").then(r=>r.json()).then(d=>{
+  DATA=d;
+  const wantRun=QS.get("run"), wantMetric=QS.get("metric");
+  run=(wantRun&&d.runs.some(r=>r.id===wantRun))?wantRun
+      :(RUN_ORDER.find(id=>d.runs.some(r=>r.id===id))||d.runs[0].id);
+  if(wantMetric&&DEMO_METRICS.includes(wantMetric)) metric=wantMetric;
+  const runItems=RUN_ORDER.filter(id=>d.runs.some(r=>r.id===id)).map(id=>({
+    id, html:`${RUN_META[id].t} <span class="badge ${RUN_META[id].cls}" style="margin-left:6px">${RUN_META[id].lab}</span>`}));
+  const drawRuns=id=>{run=id;chipRow($("#run-chips"),runItems,run,drawRuns);renderDemo();};
+  chipRow($("#run-chips"),runItems,run,drawRuns);
+  const mItems=DEMO_METRICS.map(id=>({id,label:METRIC_LABEL[id]}));
+  const drawM=id=>{metric=id;chipRow($("#metric-chips"),mItems,metric,drawM);renderDemo();};
+  chipRow($("#metric-chips"),mItems,metric,drawM);
+  renderDemo();
+}).catch(()=>{
+  $("#token-strip").innerHTML='<div class="note" style="margin:0"><b>Demo data unavailable.</b> '+
+    'This page fetches <code>site/demo_runs.json</code>; open it over HTTP (<code>python3 -m http.server</code> from <code>docs/</code>) rather than from the filesystem.</div>';
+});
+
+/* copy buttons */
+document.querySelectorAll(".copy").forEach(b=>b.onclick=()=>{
+  navigator.clipboard.writeText(b.dataset.copy).then(()=>{
+    const o=b.textContent;b.textContent="copied ✓";setTimeout(()=>b.textContent=o,1400);});
+});
+/* lightbox */
+const lb=$("#lightbox");
+document.querySelectorAll(".fig img").forEach(img=>img.parentElement.onclick=()=>{
+  lb.querySelector("img").src=img.src;lb.classList.add("on");});
+lb.onclick=()=>lb.classList.remove("on");
+addEventListener("keydown",e=>{if(e.key==="Escape")lb.classList.remove("on")});
+/* reveal on scroll */
+const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add("in");io.unobserve(e.target);}}),{rootMargin:"120px"});
+document.querySelectorAll(".reveal").forEach(n=>io.observe(n));
+/* never leave content hidden if the observer never fires */
+setTimeout(()=>document.querySelectorAll(".reveal").forEach(n=>n.classList.add("in")),1200);
+</script>
+</body>
+</html>
