@@ -1,0 +1,163 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1060 680" width="100%" height="100%">
+  <defs>
+    <style>
+      .bg { fill: #0f1012; }
+      .box { fill: #16181b; stroke: #26282d; stroke-width: 1.2px; rx: 4px; transition: stroke 0.2s, fill 0.2s; }
+      .box-focus { fill: #1a1716; stroke: #ff6038; stroke-width: 1.6px; rx: 4px; }
+      .box:hover { stroke: #ff6038; fill: #1c1f24; cursor: pointer; }
+      .line { stroke: #363940; stroke-width: 1.4px; }
+      .line-accent { stroke: #ff6038; stroke-width: 1.6px; }
+      .line-dash { stroke: #ff6038; stroke-width: 1.4px; stroke-dasharray: 4 4; opacity: 0.8; }
+      .title { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13.5px; font-weight: 600; fill: #edebe6; letter-spacing: -0.01em; }
+      .title-accent { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13.5px; font-weight: 600; fill: #ff6038; }
+      .desc { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; fill: #9a9ca3; }
+      .badge { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10px; fill: #ff6038; font-weight: 500; }
+      .stat { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10.5px; fill: #edebe6; }
+      .arrow { fill: #363940; }
+      .arrow-accent { fill: #ff6038; }
+    </style>
+    <marker id="arr" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 8 5 L 0 8.5 z" class="arrow" />
+    </marker>
+    <marker id="arr-acc" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 8 5 L 0 8.5 z" class="arrow-accent" />
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1000" height="680" class="bg" rx="6" />
+
+  <!-- Stage 1: Input Prompt -->
+  <a xlink:href="https://chirudeva-reddy.github.io/NLP-Proj/#console" target="_blank">
+    <g transform="translate(40, 24)">
+      <rect width="980" height="74" class="box" />
+      <text x="490" y="32" text-anchor="middle" class="title">1 · INPUT PROMPT : PAIRED FORWARD PASSES</text>
+      <text x="490" y="56" text-anchor="middle" class="desc">q + retrieved evidence D &nbsp;vs&nbsp; q + empty context ∅ &nbsp;·&nbsp; identical generation prompt passed through Qwen2.5-1.5B</text>
+    </g>
+  </a>
+
+  <!-- Vertical connector 1 -> 2 -->
+  <line x1="530" y1="98" x2="530" y2="124" class="line" marker-end="url(#arr)" />
+
+  <!-- Stage 2: Hidden State Extraction -->
+  <a xlink:href="https://chirudeva-reddy.github.io/NLP-Proj/#signals" target="_blank">
+    <g transform="translate(40, 126)">
+      <rect width="980" height="76" class="box" />
+      <text x="490" y="32" text-anchor="middle" class="title">2 · HIDDEN-STATE EXTRACTION ACROSS DEPTH ℓ*</text>
+      <text x="490" y="56" text-anchor="middle" class="desc">Token-level residual representations h_t^(ℓ) captured on last 18 layers (layers 10–27) via PyTorch forward hooks</text>
+    </g>
+  </a>
+
+  <!-- Trunk Connector from Stage 2 to Stage 3 signals -->
+  <line x1="530" y1="202" x2="530" y2="232" class="line" />
+  <line x1="135" y1="232" x2="925" y2="232" class="line" />
+
+  <!-- Connectors into 5 signal cards -->
+  <line x1="135" y1="232" x2="135" y2="254" class="line" marker-end="url(#arr)" />
+  <line x1="332" y1="232" x2="332" y2="254" class="line" marker-end="url(#arr)" />
+  <line x1="530" y1="232" x2="530" y2="254" class="line" marker-end="url(#arr)" />
+  <line x1="727" y1="232" x2="727" y2="254" class="line" marker-end="url(#arr)" />
+  <line x1="925" y1="232" x2="925" y2="254" class="line" marker-end="url(#arr)" />
+
+  <!-- Signal 1: Cosine Drift -->
+  <a xlink:href="https://chirudeva-reddy.github.io/NLP-Proj/#signals" target="_blank">
+    <g transform="translate(40, 256)">
+      <rect width="190" height="152" class="box" />
+      <text x="95" y="28" text-anchor="middle" class="title">Cosine Drift δ</text>
+      <text x="95" y="50" text-anchor="middle" class="desc">Trajectory instability</text>
+      <text x="95" y="74" text-anchor="middle" class="stat">AUROC 0.5989</text>
+      <text x="95" y="94" text-anchor="middle" class="badge">w = 0.383 · Layer 24</text>
+      <text x="95" y="118" text-anchor="middle" class="desc">1 − ⟨h_t, h_t-1⟩ / ‖·‖</text>
+      <text x="95" y="136" text-anchor="middle" class="desc" fill="#85878e">ECE 0.0472</text>
+    </g>
+  </a>
+
+  <!-- Signal 2: Mahalanobis -->
+  <a xlink:href="https://chirudeva-reddy.github.io/NLP-Proj/#signals" target="_blank">
+    <g transform="translate(237, 256)">
+      <rect width="190" height="152" class="box" />
+      <text x="95" y="28" text-anchor="middle" class="title">Mahalanobis m</text>
+      <text x="95" y="50" text-anchor="middle" class="desc">Off-manifold shift</text>
+      <text x="95" y="74" text-anchor="middle" class="stat">AUROC 0.5389</text>
+      <text x="95" y="94" text-anchor="middle" class="badge">w = 0.164 · Layer 27</text>
+      <text x="95" y="118" text-anchor="middle" class="desc">√((h−μ)ᵀ Σ⁻¹ (h−μ))</text>
+      <text x="95" y="136" text-anchor="middle" class="desc" fill="#85878e">Train split μ, Σ</text>
+    </g>
+  </a>
+
+  <!-- Signal 3: Logit Lens -->
+  <a xlink:href="https://chirudeva-reddy.github.io/NLP-Proj/#signals" target="_blank">
+    <g transform="translate(435, 256)">
+      <rect width="190" height="152" class="box" />
+      <text x="95" y="28" text-anchor="middle" class="title">Logit Lens Λ</text>
+      <text x="95" y="50" text-anchor="middle" class="desc">Depth disagreement</text>
+      <text x="95" y="74" text-anchor="middle" class="stat">AUROC 0.5732</text>
+      <text x="95" y="94" text-anchor="middle" class="badge">w = 0.206 · L24-25</text>
+      <text x="95" y="118" text-anchor="middle" class="desc">D_KL( P̂(D) ‖ P̂(∅) )</text>
+      <text x="95" y="136" text-anchor="middle" class="desc" fill="#85878e">Vocabulary projection</text>
+    </g>
+  </a>
+
+  <!-- Signal 4: PCA Residual -->
+  <a xlink:href="https://chirudeva-reddy.github.io/NLP-Proj/#signals" target="_blank">
+    <g transform="translate(632, 256)">
+      <rect width="190" height="152" class="box" />
+      <text x="95" y="28" text-anchor="middle" class="title">PCA Residual ρ</text>
+      <text x="95" y="50" text-anchor="middle" class="desc">Subspace escape</text>
+      <text x="95" y="74" text-anchor="middle" class="stat">AUROC 0.5490</text>
+      <text x="95" y="94" text-anchor="middle" class="badge">w = 0.247 · Layer 25</text>
+      <text x="95" y="118" text-anchor="middle" class="desc">‖ h − V Vᵀ h ‖₂</text>
+      <text x="95" y="136" text-anchor="middle" class="desc" fill="#85878e">16 basis components</text>
+    </g>
+  </a>
+
+  <!-- Signal 5: Causal Patching (CIE) -->
+  <a xlink:href="https://chirudeva-reddy.github.io/NLP-Proj/#evidence" target="_blank">
+    <g transform="translate(830, 256)">
+      <rect width="190" height="152" class="box" />
+      <text x="95" y="28" text-anchor="middle" class="title">Causal Patching</text>
+      <text x="95" y="50" text-anchor="middle" class="desc">Direct intervention</text>
+      <text x="95" y="74" text-anchor="middle" class="stat">AUROC 0.5138</text>
+      <text x="95" y="94" text-anchor="middle" class="badge">Localisation Only</text>
+      <text x="95" y="118" text-anchor="middle" class="desc">P^patch − P^corrupt</text>
+      <text x="95" y="136" text-anchor="middle" class="desc" fill="#85878e">Top-3 layers: 21, 23, 22</text>
+    </g>
+  </a>
+
+  <!-- Trunk Connector from 4 Fused Signals to Stage 4 -->
+  <line x1="135" y1="408" x2="135" y2="434" class="line" />
+  <line x1="332" y1="408" x2="332" y2="434" class="line" />
+  <line x1="530" y1="408" x2="530" y2="434" class="line" />
+  <line x1="727" y1="408" x2="727" y2="434" class="line" />
+  <line x1="135" y1="434" x2="727" y2="434" class="line" />
+  <line x1="431" y1="434" x2="431" y2="456" class="line-accent" marker-end="url(#arr-acc)" />
+
+  <!-- Direct causal dashed connector from CIE to Final Score -->
+  <line x1="925" y1="408" x2="925" y2="566" class="line-dash" />
+  <line x1="925" y1="566" x2="890" y2="566" class="line-dash" marker-end="url(#arr-acc)" />
+  <text x="932" y="482" class="badge" font-size="9.5px">Causal validation</text>
+  <text x="932" y="496" class="desc" font-size="9px">p &lt; 0.05 across</text>
+  <text x="932" y="510" class="desc" font-size="9px">all components</text>
+
+  <!-- Stage 4: Robust Z-Score Fusion -->
+  <a xlink:href="https://chirudeva-reddy.github.io/NLP-Proj/#bench" target="_blank">
+    <g transform="translate(40, 458)">
+      <rect width="782" height="74" class="box-focus" />
+      <text x="391" y="30" text-anchor="middle" class="title-accent">4 · VALIDATION-TUNED ROBUST Z-SCORE FUSION</text>
+      <text x="391" y="54" text-anchor="middle" class="desc">z_i = (x_i − median_train) / IQR_train &nbsp;·&nbsp; s = Σ w_i · z_i &nbsp;·&nbsp; frozen in stats.pt, never refitted on test</text>
+    </g>
+  </a>
+
+  <!-- Vertical connector 4 -> 5 -->
+  <line x1="431" y1="532" x2="431" y2="558" class="line-accent" marker-end="url(#arr-acc)" />
+
+  <!-- Stage 5: Final Score -->
+  <a xlink:href="https://chirudeva-reddy.github.io/NLP-Proj/#onset" target="_blank">
+    <g transform="translate(40, 560)">
+      <rect width="844" height="88" class="box" stroke="#ff6038" stroke-width="1.8px" fill="#1b1817" />
+      <text x="422" y="34" text-anchor="middle" class="title-accent" font-size="15px">5 · PRE-GENERATION HALLUCINATION DETECTION SCORE</text>
+      <text x="422" y="58" text-anchor="middle" class="desc" fill="#edebe6">AUROC 0.6511 [0.6307, 0.6614] &nbsp;·&nbsp; ECE 0.0678 (3.3× reduction) &nbsp;·&nbsp; Zero-Shot HaluEval 0.6450 (+0.0058 Δ)</text>
+      <text x="422" y="76" text-anchor="middle" class="badge">KEY FINDING : Drift peaks at t−2 before text onset (Mann–Whitney U, p = 2.86 × 10⁻⁵)</text>
+    </g>
+  </a>
+</svg>
