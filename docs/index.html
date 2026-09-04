@@ -299,20 +299,82 @@ h2{font-size:clamp(1.85rem,4.3vw,2.9rem);letter-spacing:-.04em;line-height:1.03;
 .twoup h3{font-size:1.28rem;letter-spacing:-.03em;margin-bottom:10px}
 .twoup p{color:var(--ink-2);font-size:14.5px;max-width:46ch}
 
-/* ---------------- gallery ---------------- */
-.gal{columns:2;column-gap:16px}
-@media(max-width:820px){.gal{columns:1}}
-.fig{break-inside:avoid;margin:0 0 16px;border:1px solid var(--rule);border-radius:var(--r);
-  overflow:hidden;background:var(--paper);cursor:zoom-in;
-  transition:border-color .2s,transform .3s var(--ease)}
-.fig:hover{border-color:var(--ink-3);transform:translateY(-2px)}
-.fig img{width:100%;display:block;background:#fff}
-.fig figcaption{padding:13px 16px;font-size:13px;color:var(--ink-2);border-top:1px solid var(--rule-soft)}
-.fig figcaption b{display:block;color:var(--ink);font-weight:550;margin-bottom:2px}
-#lb{position:fixed;inset:0;z-index:99;display:none;place-items:center;padding:28px;cursor:zoom-out;
-  background:color-mix(in srgb,var(--paper) 92%,transparent);backdrop-filter:blur(8px)}
+/* ---------------- gallery & scroll showcase ---------------- */
+.gal-tools{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin-bottom:24px}
+.gal-modes{display:flex;align-items:center;gap:6px}
+.gal{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;position:relative}
+@media(max-width:860px){.gal{grid-template-columns:minmax(0,1fr);gap:18px}}
+.gal.stream{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:24px;padding:4px 4px 18px;
+  scrollbar-width:thin;scroll-behavior:smooth;-webkit-overflow-scrolling:touch}
+.gal.stream .fig{flex:0 0 clamp(320px,68vw,620px);scroll-snap-align:center;margin:0}
+.stream-ctrls{display:none;align-items:center;gap:8px}
+.gal.stream + .stream-ctrls{display:flex;justify-content:flex-end;margin-top:10px}
+
+.fig{margin:0;border:1px solid var(--rule);border-radius:var(--r);background:var(--paper);
+  overflow:hidden;display:flex;flex-direction:column;cursor:zoom-in;position:relative;
+  opacity:0;transform:translateY(36px) scale(.97);filter:blur(2px);
+  transition:opacity .75s var(--ease),transform .75s var(--ease),filter .75s var(--ease),border-color .2s,box-shadow .25s;
+  will-change:opacity,transform,filter}
+.fig.in-view{opacity:1;transform:translateY(0) scale(1);filter:blur(0)}
+.fig:hover{border-color:var(--ink-3);box-shadow:0 8px 30px rgba(0,0,0,.08);transform:translateY(-3px)}
+.fig.hide{display:none!important}
+
+@supports (animation-timeline: view()){
+  .fig{animation:figScrollIn linear both;animation-timeline:view();animation-range:entry 8% cover 30%}
+  @keyframes figScrollIn{
+    from{opacity:0;transform:translateY(42px) scale(.96);filter:blur(3px)}
+    to{opacity:1;transform:translateY(0) scale(1);filter:blur(0)}
+  }
+}
+
+.fig-head{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;
+  background:var(--paper-2);border-bottom:1px solid var(--rule-soft);font-family:var(--mono);font-size:11px}
+.fig-head .eh{font-weight:500;color:var(--ink);letter-spacing:-.01em}
+.fig-head .eh b{color:var(--accent);margin-right:6px}
+.fig-head .actions{display:flex;align-items:center;gap:8px}
+
+.fig-stage{background:var(--paper-2);padding:14px;display:flex;justify-content:center;
+  align-items:center;border-bottom:1px solid var(--rule-soft);position:relative;overflow:hidden}
+.fig-stage img{width:100%;height:auto;display:block;background:#fff;border-radius:var(--r);
+  box-shadow:0 2px 14px rgba(0,0,0,.11);transition:transform .4s var(--ease)}
+.fig:hover .fig-stage img{transform:scale(1.02)}
+.fig-stage .zoom-hint{position:absolute;right:22px;bottom:22px;background:color-mix(in srgb,var(--ink) 80%,transparent);
+  color:var(--paper);font-family:var(--mono);font-size:10px;padding:3px 7px;border-radius:var(--r);
+  opacity:0;transform:translateY(4px);transition:.2s var(--ease);pointer-events:none}
+.fig:hover .fig-stage .zoom-hint{opacity:1;transform:none}
+
+.fig-body{padding:14px 16px;display:flex;flex-direction:column;gap:6px;background:var(--paper);flex:1}
+.fig-body h4{margin:0;font-size:14.5px;font-weight:600;letter-spacing:-.02em;color:var(--ink)}
+.fig-body p{font-size:13px;color:var(--ink-2);line-height:1.55;margin:0}
+.fig-cmd{margin-top:auto;padding-top:10px;border-top:1px solid var(--rule-soft);
+  display:flex;justify-content:space-between;align-items:center;gap:10px;font-family:var(--mono);font-size:10.5px;color:var(--ink-3)}
+.fig-cmd code{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.fig-cmd .copy-mini{padding:2px 6px;border:1px solid var(--rule);border-radius:var(--r);color:var(--ink-3);font-size:10px;cursor:pointer;transition:.18s}
+.fig-cmd .copy-mini:hover{color:var(--accent);border-color:var(--accent)}
+
+/* ---------------- enhanced lightbox ---------------- */
+#lb{position:fixed;inset:0;z-index:99;display:none;place-items:center;padding:clamp(14px,3vw,36px);
+  background:color-mix(in srgb,var(--paper) 94%,transparent);backdrop-filter:blur(12px);cursor:default}
 #lb.on{display:grid}
-#lb img{max-width:100%;max-height:90vh;background:#fff;border:1px solid var(--rule)}
+.lb-box{position:relative;max-width:min(94vw,980px);width:100%;max-height:92vh;background:var(--paper);
+  border:1px solid var(--rule);border-radius:var(--r);box-shadow:0 24px 60px rgba(0,0,0,.26);
+  display:flex;flex-direction:column;overflow:hidden;animation:lbOpen .25s var(--ease) forwards}
+@keyframes lbOpen{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:none}}
+.lb-h{display:flex;justify-content:space-between;align-items:center;padding:12px 18px;
+  background:var(--paper-2);border-bottom:1px solid var(--rule);font-family:var(--mono);font-size:12px}
+.lb-stage{padding:16px;background:var(--paper-2);display:flex;justify-content:center;align-items:center;overflow:auto}
+.lb-stage img{max-width:100%;max-height:65vh;height:auto;background:#fff;border-radius:var(--r);
+  box-shadow:0 4px 20px rgba(0,0,0,.15);border:1px solid var(--rule)}
+.lb-f{padding:14px 18px;background:var(--paper);border-top:1px solid var(--rule);font-size:13.5px;color:var(--ink-2)}
+.lb-f b{color:var(--ink);display:block;margin-bottom:2px}
+.lb-btn{width:36px;height:36px;border-radius:50%;background:var(--paper);border:1px solid var(--rule);
+  display:grid;place-items:center;cursor:pointer;color:var(--ink);box-shadow:0 3px 10px rgba(0,0,0,.12);
+  position:absolute;top:50%;transform:translateY(-50%);transition:.18s var(--ease);z-index:2}
+.lb-btn:hover{border-color:var(--ink);transform:translateY(-50%) scale(1.08)}
+.lb-btn.prev{left:14px}
+.lb-btn.next{right:14px}
+.lb-close{background:none;border:none;font-family:var(--mono);font-size:16px;cursor:pointer;color:var(--ink-2);padding:4px 8px}
+.lb-close:hover{color:var(--accent)}
 
 /* ---------------- steps ---------------- */
 .steps{display:grid;grid-template-columns:minmax(0,1fr);gap:1px;background:var(--rule);border:1px solid var(--rule)}
@@ -643,16 +705,180 @@ footer a:hover{color:var(--accent)}
   <div class="wrap">
     <div class="shead rev">
       <h2>Everything the pipeline plots.</h2>
-      <p>Written straight out of the analysis scripts in the repository. Click to enlarge.</p>
+      <p>Written straight out of the analysis scripts in the repository. Click any figure to open the interactive high-resolution viewer.</p>
     </div>
-    <div class="gal rev">
-      <figure class="fig"><img loading="lazy" src="images/layer_profile.png" alt="Per-layer point-biserial correlation profile"><figcaption><b>Layer profile</b>Discriminative signal concentrates in Qwen layers 15 to 25. The top three are 21, 23 and 22.</figcaption></figure>
-      <figure class="fig"><img loading="lazy" src="images/temporal_precedence.png" alt="Drift signals aligned to hallucination onset"><figcaption><b>Temporal precedence</b>Drift signals aligned to the first hallucinated token, showing the pre-onset peak.</figcaption></figure>
-      <figure class="fig"><img loading="lazy" src="images/cie_bidirectional.png" alt="Bidirectional causal indirect effect by component group"><figcaption><b>Bidirectional patching</b>Causal indirect effect per component group, faithful to hallucinated and back.</figcaption></figure>
-      <figure class="fig"><img loading="lazy" src="images/component_drift.png" alt="Self-attention versus feed-forward drift contribution"><figcaption><b>Component drift</b>Self-attention against feed-forward contribution to the residual-stream update, by layer.</figcaption></figure>
-      <figure class="fig"><img loading="lazy" src="images/failure_fn_1289.png" alt="False negative trace, sample 1289"><figcaption><b>False negative</b>A hallucination the composite missed, sample 1289.</figcaption></figure>
-      <figure class="fig"><img loading="lazy" src="images/failure_fp_12310.png" alt="False positive trace, sample 12310"><figcaption><b>False positive</b>A faithful answer that drifted anyway, sample 12310.</figcaption></figure>
-      <figure class="fig"><img loading="lazy" src="images/failure_disagreement_3574.png" alt="Metric disagreement trace, sample 3574"><figcaption><b>Metric disagreement</b>Where the five signals contradict each other, sample 3574.</figcaption></figure>
+
+    <div class="gal-tools rev">
+      <div class="chips" id="gal-filter">
+        <button class="chip" type="button" aria-pressed="true" data-filter="all">All plots <span class="tag g">7</span></button>
+        <button class="chip" type="button" aria-pressed="false" data-filter="core">Core findings <span class="tag h">4</span></button>
+        <button class="chip" type="button" aria-pressed="false" data-filter="diag">Diagnostic traces <span class="tag g">3</span></button>
+      </div>
+      <div class="gal-modes">
+        <button class="chip" type="button" id="mode-grid" aria-pressed="true" title="Grid layout">Grid view</button>
+        <button class="chip" type="button" id="mode-stream" aria-pressed="false" title="Scroll stream">Scroll stream</button>
+      </div>
+    </div>
+
+    <div class="gal rev" id="gal-container">
+      <figure class="fig" data-cat="core" data-idx="0">
+        <div class="fig-head">
+          <span class="eh"><b>E2</b> Layer profile</span>
+          <div class="actions">
+            <span class="tag h">Core finding</span>
+            <span class="enlarge-btn" aria-hidden="true">Enlarge ↗</span>
+          </div>
+        </div>
+        <div class="fig-stage">
+          <img loading="lazy" src="images/layer_profile.png" alt="Per-layer point-biserial correlation profile">
+          <span class="zoom-hint">Click to inspect</span>
+        </div>
+        <div class="fig-body">
+          <h4>Layer localisation profile</h4>
+          <p>Discriminative signal concentrates in middle-to-late Qwen layers (saved indices 5–15 correspond to model layers 15–25). The top three predictive layers are <b>21, 23, and 22</b>.</p>
+          <div class="fig-cmd">
+            <code>python NLP-sub/pipeline/plot.py</code>
+            <button class="copy-mini" type="button" data-copy="python NLP-sub/pipeline/plot.py --artifacts-dir NLP-sub/outputs/artifacts/test --stats NLP-sub/outputs/stats.pt --output docs/images/layer_profile.png">copy</button>
+          </div>
+        </div>
+      </figure>
+
+      <figure class="fig" data-cat="core" data-idx="1">
+        <div class="fig-head">
+          <span class="eh"><b>E4</b> Pre-onset peak</span>
+          <div class="actions">
+            <span class="tag h">Key discovery</span>
+            <span class="enlarge-btn" aria-hidden="true">Enlarge ↗</span>
+          </div>
+        </div>
+        <div class="fig-stage">
+          <img loading="lazy" src="images/temporal_precedence.png" alt="Drift signals aligned to hallucination onset">
+          <span class="zoom-hint">Click to inspect</span>
+        </div>
+        <div class="fig-body">
+          <h4>Pre-onset temporal precedence</h4>
+          <p>Aligned to first hallucinated token (t = 0). Cosine drift peaks at <b>t−2</b> before the model commits the error to text (Mann-Whitney U, <b>p = 2.86 &times; 10<sup>-5</sup></b>).</p>
+          <div class="fig-cmd">
+            <code>python NLP-sub/scripts/e4_temporal.py</code>
+            <button class="copy-mini" type="button" data-copy="python NLP-sub/scripts/e4_temporal.py">copy</button>
+          </div>
+        </div>
+      </figure>
+
+      <figure class="fig" data-cat="core" data-idx="2">
+        <div class="fig-head">
+          <span class="eh"><b>E3</b> Causal patching</span>
+          <div class="actions">
+            <span class="tag h">Causal CIE</span>
+            <span class="enlarge-btn" aria-hidden="true">Enlarge ↗</span>
+          </div>
+        </div>
+        <div class="fig-stage">
+          <img loading="lazy" src="images/cie_bidirectional.png" alt="Bidirectional causal indirect effect by component group">
+          <span class="zoom-hint">Click to inspect</span>
+        </div>
+        <div class="fig-body">
+          <h4>Bidirectional activation patching</h4>
+          <p>50+ paired counterfactuals. Early attention dominates causal influence by an order of magnitude (CIE <b>&minus;1.0991</b>, <b>p &lt; 0.05</b> across all component groups).</p>
+          <div class="fig-cmd">
+            <code>python NLP-sub/scripts/e3_patching.py</code>
+            <button class="copy-mini" type="button" data-copy="python NLP-sub/scripts/e3_patching.py --model Qwen/Qwen2.5-1.5B --device auto">copy</button>
+          </div>
+        </div>
+      </figure>
+
+      <figure class="fig" data-cat="core" data-idx="3">
+        <div class="fig-head">
+          <span class="eh"><b>E6</b> Component drift</span>
+          <div class="actions">
+            <span class="tag g">Mechanistic</span>
+            <span class="enlarge-btn" aria-hidden="true">Enlarge ↗</span>
+          </div>
+        </div>
+        <div class="fig-stage">
+          <img loading="lazy" src="images/component_drift.png" alt="Self-attention versus feed-forward drift contribution">
+          <span class="zoom-hint">Click to inspect</span>
+        </div>
+        <div class="fig-body">
+          <h4>Self-attention vs FFN component drift</h4>
+          <p>Decomposing residual-stream updates shows <b>FFN key-value memories</b> driving mid-to-late layer representation drift during factual hallucinations.</p>
+          <div class="fig-cmd">
+            <code>python NLP-sub/scripts/e6_component_drift.py</code>
+            <button class="copy-mini" type="button" data-copy="python NLP-sub/scripts/e6_component_drift.py --model Qwen/Qwen2.5-1.5B --device auto">copy</button>
+          </div>
+        </div>
+      </figure>
+
+      <figure class="fig" data-cat="diag" data-idx="4">
+        <div class="fig-head">
+          <span class="eh"><b>E7</b> Sample #1289</span>
+          <div class="actions">
+            <span class="tag g">False negative</span>
+            <span class="enlarge-btn" aria-hidden="true">Enlarge ↗</span>
+          </div>
+        </div>
+        <div class="fig-stage">
+          <img loading="lazy" src="images/failure_fn_1289.png" alt="False negative trace, sample 1289">
+          <span class="zoom-hint">Click to inspect</span>
+        </div>
+        <div class="fig-body">
+          <h4>Missed hallucination trace</h4>
+          <p>A fabrication the composite missed. Internal drift remained low because the invented entities closely mirrored the vocabulary and syntax of training examples.</p>
+          <div class="fig-cmd">
+            <code>python NLP-sub/scripts/e7_failures.py</code>
+            <button class="copy-mini" type="button" data-copy="python NLP-sub/scripts/e7_failures.py --sample 1289">copy</button>
+          </div>
+        </div>
+      </figure>
+
+      <figure class="fig" data-cat="diag" data-idx="5">
+        <div class="fig-head">
+          <span class="eh"><b>E7</b> Sample #12310</span>
+          <div class="actions">
+            <span class="tag g">False positive</span>
+            <span class="enlarge-btn" aria-hidden="true">Enlarge ↗</span>
+          </div>
+        </div>
+        <div class="fig-stage">
+          <img loading="lazy" src="images/failure_fp_12310.png" alt="False positive trace, sample 12310">
+          <span class="zoom-hint">Click to inspect</span>
+        </div>
+        <div class="fig-body">
+          <h4>Faithful continuation that drifted</h4>
+          <p>A grounded answer that drifted anyway. Numerical dates triggered off-manifold Mahalanobis warnings despite being factually grounded in the prompt context.</p>
+          <div class="fig-cmd">
+            <code>python NLP-sub/scripts/e7_failures.py</code>
+            <button class="copy-mini" type="button" data-copy="python NLP-sub/scripts/e7_failures.py --sample 12310">copy</button>
+          </div>
+        </div>
+      </figure>
+
+      <figure class="fig" data-cat="diag" data-idx="6">
+        <div class="fig-head">
+          <span class="eh"><b>E7</b> Sample #3574</span>
+          <div class="actions">
+            <span class="tag g">Contradiction</span>
+            <span class="enlarge-btn" aria-hidden="true">Enlarge ↗</span>
+          </div>
+        </div>
+        <div class="fig-stage">
+          <img loading="lazy" src="images/failure_disagreement_3574.png" alt="Metric disagreement trace, sample 3574">
+          <span class="zoom-hint">Click to inspect</span>
+        </div>
+        <div class="fig-body">
+          <h4>Signal contradiction trace</h4>
+          <p>Where the five signals contradict each other. Mahalanobis and PCA indicate substantial departure while logit lens remains confident in the evidence context.</p>
+          <div class="fig-cmd">
+            <code>python NLP-sub/scripts/e7_failures.py</code>
+            <button class="copy-mini" type="button" data-copy="python NLP-sub/scripts/e7_failures.py --sample 3574">copy</button>
+          </div>
+        </div>
+      </figure>
+    </div>
+
+    <div class="stream-ctrls">
+      <button class="iconbtn" id="stream-prev" aria-label="Previous figure">‹</button>
+      <button class="iconbtn" id="stream-next" aria-label="Next figure">›</button>
     </div>
   </div>
 </section>
@@ -759,7 +985,26 @@ python scripts/export_demo_json.py <span class="f">--stats</span> outputs/stats.
   </div>
 </footer>
 
-<div id="lb"><img alt="Enlarged figure"></div>
+<div id="lb" role="dialog" aria-modal="true" aria-label="Figure inspection modal">
+  <div class="lb-box" onclick="event.stopPropagation()">
+    <div class="lb-h">
+      <span id="lb-title"><b>E2</b> Layer profile</span>
+      <button class="lb-close" id="lb-close" type="button" aria-label="Close viewer">✕</button>
+    </div>
+    <div class="lb-stage">
+      <button class="lb-btn prev" id="lb-prev" type="button" aria-label="Previous figure">‹</button>
+      <img id="lb-img" alt="Enlarged figure">
+      <button class="lb-btn next" id="lb-next" type="button" aria-label="Next figure">›</button>
+    </div>
+    <div class="lb-f">
+      <span id="lb-desc"><b>Key finding</b> Description</span>
+      <div class="fig-cmd" style="margin-top:6px;border-top:none;padding-top:0">
+        <code id="lb-cmd">python NLP-sub/pipeline/plot.py</code>
+        <button class="copy-mini" id="lb-copy" type="button">copy</button>
+      </div>
+    </div>
+  </div>
+</div>
 <div class="tip" id="tip"></div>
 
 <script>
@@ -1366,13 +1611,119 @@ fetch("site/demo_runs.json").then(r=>r.json()).then(d=>{
   $("#passage").innerHTML='<span style="font-size:15px;color:var(--ink-3)">Demo data unavailable over this protocol.</span>';
 });
 
-/* copy, lightbox */
+/* ==================== figure scroll entrance & showcase ==================== */
+const figEls=$$(".fig");
+const figIO=new IntersectionObserver((entries)=>{
+  entries.forEach(entry=>{
+    if(entry.isIntersecting){
+      const el=entry.target;
+      const idx=+el.dataset.idx||0;
+      setTimeout(()=>{
+        el.classList.add("in-view");
+      }, reduced?0:(idx%2)*90);
+      figIO.unobserve(el);
+    }
+  });
+},{rootMargin:"0px 0px -8% 0px",threshold:0.12});
+figEls.forEach(f=>figIO.observe(f));
+setTimeout(()=>figEls.forEach(f=>f.classList.add("in-view")),2200);
+
+/* category filter */
+$$("#gal-filter .chip").forEach(btn=>{
+  btn.onclick=()=>{
+    $$("#gal-filter .chip").forEach(b=>b.setAttribute("aria-pressed","false"));
+    btn.setAttribute("aria-pressed","true");
+    const cat=btn.dataset.filter;
+    figEls.forEach(fig=>{
+      const match=cat==="all"||fig.dataset.cat===cat;
+      fig.classList.toggle("hide",!match);
+    });
+  };
+});
+
+/* view mode toggle (grid vs scroll stream) */
+const galCont=$("#gal-container");
+const btnGrid=$("#mode-grid"), btnStream=$("#mode-stream");
+if(btnGrid && btnStream && galCont){
+  btnGrid.onclick=()=>{
+    btnGrid.setAttribute("aria-pressed","true");
+    btnStream.setAttribute("aria-pressed","false");
+    galCont.classList.remove("stream");
+  };
+  btnStream.onclick=()=>{
+    btnStream.setAttribute("aria-pressed","true");
+    btnGrid.setAttribute("aria-pressed","false");
+    galCont.classList.add("stream");
+  };
+  const sp=$("#stream-prev"),sn=$("#stream-next");
+  if(sp&&sn){
+    sp.onclick=()=>galCont.scrollBy({left:-380,behavior:"smooth"});
+    sn.onclick=()=>galCont.scrollBy({left:380,behavior:"smooth"});
+  }
+}
+
+/* ==================== interactive lightbox ==================== */
+let lbIdx=0;
+const lbData=figEls.map((f,i)=>({
+  idx:i,
+  title:f.querySelector(".fig-head .eh")?.innerHTML||"",
+  img:f.querySelector("img")?.src||"",
+  desc:f.querySelector(".fig-body p")?.innerHTML||"",
+  h4:f.querySelector(".fig-body h4")?.textContent||"",
+  cmd:f.querySelector(".fig-cmd button")?.dataset.copy||""
+}));
+
+function openLb(index){
+  lbIdx=Math.max(0,Math.min(lbData.length-1,index));
+  const d=lbData[lbIdx];
+  if(!d)return;
+  $("#lb-title").innerHTML=d.title;
+  $("#lb-img").src=d.img;
+  $("#lb-desc").innerHTML="<b>"+d.h4+"</b> "+d.desc;
+  $("#lb-cmd").textContent=d.cmd;
+  $("#lb-copy").dataset.copy=d.cmd;
+  $("#lb").classList.add("on");
+}
+
+figEls.forEach((f,i)=>{
+  f.onclick=(e)=>{
+    if(e.target.closest(".copy-mini"))return;
+    openLb(i);
+  };
+});
+
+$("#lb-close").onclick=()=>$("#lb").classList.remove("on");
+$("#lb").onclick=()=>$("#lb").classList.remove("on");
+$("#lb-prev").onclick=(e)=>{e.stopPropagation();openLb((lbIdx-1+lbData.length)%lbData.length)};
+$("#lb-next").onclick=(e)=>{e.stopPropagation();openLb((lbIdx+1)%lbData.length)};
+
+$("#lb-copy").onclick=(e)=>{
+  e.stopPropagation();
+  const txt=$("#lb-copy").dataset.copy;
+  if(txt)navigator.clipboard.writeText(txt).then(()=>{
+    const o=$("#lb-copy").textContent;
+    $("#lb-copy").textContent="copied ✓";
+    setTimeout(()=>$("#lb-copy").textContent=o,1200);
+  });
+};
+
+addEventListener("keydown",e=>{
+  if(!$("#lb").classList.contains("on"))return;
+  if(e.key==="Escape")$("#lb").classList.remove("on");
+  else if(e.key==="ArrowLeft")openLb((lbIdx-1+lbData.length)%lbData.length);
+  else if(e.key==="ArrowRight")openLb((lbIdx+1)%lbData.length);
+});
+
+/* copy buttons */
 $$(".copy").forEach(b=>b.onclick=()=>navigator.clipboard.writeText(b.dataset.copy).then(()=>{
   const o=b.textContent;b.textContent="copied";setTimeout(()=>{b.textContent=o},1300)}));
-const lb=$("#lb");
-$$(".fig").forEach(f=>f.onclick=()=>{lb.querySelector("img").src=f.querySelector("img").src;lb.classList.add("on")});
-lb.onclick=()=>lb.classList.remove("on");
-addEventListener("keydown",e=>{if(e.key==="Escape")lb.classList.remove("on")});
+$$(".copy-mini").forEach(b=>b.onclick=(e)=>{
+  e.stopPropagation();
+  const c=b.dataset.copy;
+  if(c)navigator.clipboard.writeText(c).then(()=>{
+    const o=b.textContent;b.textContent="copied";setTimeout(()=>{b.textContent=o},1200);
+  });
+});
 </script>
 </body>
 </html>
