@@ -5,6 +5,7 @@
 **Catching RAG hallucinations from a transformer's hidden states: before the first wrong token is emitted.**
 
 [![Live Demo](https://img.shields.io/badge/▶_Live_Interactive_Demo-c8340f?style=for-the-badge&logo=googlechrome&logoColor=white)](https://chirudeva-reddy.github.io/NLP-Proj/)
+[![Gallery](https://img.shields.io/badge/📊_Figure_Exhibition-Interactive-16171a?style=for-the-badge)](https://chirudeva-reddy.github.io/NLP-Proj/#figures)
 [![Paper](https://img.shields.io/badge/📄_Research_Report-PDF-16171a?style=for-the-badge)](docs/CS_F429_Project_Report.pdf)
 [![AUROC](https://img.shields.io/badge/AUROC-0.6511_RAGTruth-16171a?style=for-the-badge)](https://chirudeva-reddy.github.io/NLP-Proj/#bench)
 [![Pre-Onset](https://img.shields.io/badge/Pre--Onset_Peak-t−2-c8340f?style=for-the-badge)](https://chirudeva-reddy.github.io/NLP-Proj/#onset)
@@ -17,8 +18,8 @@
 
 <br><br>
 
-### 🚀 [**Launch the Live Interactive Demo**](https://chirudeva-reddy.github.io/NLP-Proj/)
-*Explore real recorded runs from `Qwen2.5-1.5B` token-by-token right in your browser.*
+### 🚀 [**Launch the Live Interactive Demo & Figure Exhibition**](https://chirudeva-reddy.github.io/NLP-Proj/)
+*Explore real recorded runs from `Qwen2.5-1.5B` token-by-token and inspect mounted research plots right in your browser.*
 
 <br>
 
@@ -37,6 +38,69 @@ When a retrieval-augmented generation (RAG) system retrieves relevant documents,
 **This project addresses a fundamental question:** does the model's internal residual stream already reflect the hallucination before it is written?
 
 By running the generation prompt under two conditions (with retrieved evidence $D$ vs with empty context $\emptyset$), we track internal representation drift across depth. The empirical discovery: **drift peaks at $t-2$, two tokens before the hallucination appears in the generated text** ($p = 2.86 \times 10^{-5}$). This pre-onset gap makes genuine pre-generation intervention possible in a single forward pass.
+
+---
+
+## 🎮 Interactive Web Demo & Visual Showcase
+
+The project includes an interactive web application deployed live on GitHub Pages, featuring native CSS scroll-driven animations, active navigation scroll spy, and GPU-accelerated SVG instrumentation:
+
+🔗 **[https://chirudeva-reddy.github.io/NLP-Proj/](https://chirudeva-reddy.github.io/NLP-Proj/)**
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+### 1. [Token-by-Token Playback Console](https://chirudeva-reddy.github.io/NLP-Proj/#console)
+* **Real-time generation scrubber:** Scrub forward and backward across decoded tokens at generation pace.
+* **Synchronized representation sparkline:** Dynamic SVG trace tracks residual drift position by position.
+* **Multi-metric switching:** Inspect individual signals (Cosine, Mahalanobis, Logit Lens, PCA) and their consensus ranking.
+* **Keyboard controls:** Press <kbd>Space</kbd> to play/pause, <kbd>←</kbd> / <kbd>→</kbd> to step tokens, and <kbd>1</kbd>–<kbd>5</kbd> to switch test cases.
+
+</td>
+<td width="50%" valign="top">
+
+### 2. [Mounted Figure Exhibition Gallery](https://chirudeva-reddy.github.io/NLP-Proj/#figures)
+* **Lab-grade figure mounting:** All 7 pipeline plots mounted inside neutral matte exhibition stages with elevation framing.
+* **Scroll-driven entrance choreography:** Native CSS `animation-timeline: view()` entrance transitions with staggered fallback.
+* **Instant category filtering:** Synchronously filter between *All plots*, *Core findings*, and *Diagnostic traces*.
+* **Display modes & lightbox:** Switch between multi-column grid and horizontal scroll stream, or click any figure to open the high-resolution lightbox with 1-click CLI reproduction commands.
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+### 3. [Pre-Onset Peak Explorer](https://chirudeva-reddy.github.io/NLP-Proj/#onset)
+* **Animated trajectory draw:** Interactive SVG curve shows representation drift peaking at **t−2**, two positions prior to the first hallucinated token ($p = 2.86 \times 10^{-5}$).
+* **Signal comparison:** Switch between Cosine drift, Mahalanobis distance, Logit Lens, and CIE directly on the chart.
+
+</td>
+<td width="50%" valign="top">
+
+### 4. [Dynamic Benchmark Matrix](https://chirudeva-reddy.github.io/NLP-Proj/#bench)
+* **Multi-metric column switching:** Toggle across AUROC, Span F1, Spearman ρ, and Expected Calibration Error (ECE).
+* **Bootstrap uncertainty bars:** Dynamic SVG whisker bars visualizing 1,000-iteration bootstrap confidence intervals with chance baselines.
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+### 5. [Drift Reader Experience](https://chirudeva-reddy.github.io/NLP-Proj/#drift)
+* **Real-time representation heatmapping:** Words illuminate as you scroll: cold where representations stay on the faithful manifold, hot where they depart.
+* **Side-by-side evidence tracking:** Direct comparison against the retrieved source passage with live peak metric counters.
+
+</td>
+<td width="50%" valign="top">
+
+### 6. [Active Nav & Full Responsiveness](https://chirudeva-reddy.github.io/NLP-Proj/)
+* **Scroll spy header:** Dynamically tracks viewport position with vermilion indicators.
+* **Zero horizontal overflow:** Verified 100% responsive across mobile, tablet, and desktop viewports (360px–1280px).
+
+</td>
+</tr>
+</table>
 
 ---
 
@@ -176,6 +240,8 @@ The transformer's internal representations leave the faithful manifold two token
 
 <div align="center">
 <img src="docs/images/temporal_precedence.png" alt="Temporal Precedence Plot" width="85%" />
+<br>
+<sub>🔍 <a href="https://chirudeva-reddy.github.io/NLP-Proj/#figures"><b>Inspect the mounted E4 figure in the live gallery</b></a> · 1-click CLI reproduction and lightbox inspection</sub>
 </div>
 
 </details>
@@ -195,6 +261,8 @@ Across 50+ paired counterfactual examples, activation states were swapped betwee
 
 <div align="center">
 <img src="docs/images/cie_bidirectional.png" alt="Bidirectional CIE Plot" width="85%" />
+<br>
+<sub>🔍 <a href="https://chirudeva-reddy.github.io/NLP-Proj/#figures"><b>Inspect the mounted E3 figure in the live gallery</b></a> · 1-click CLI reproduction and lightbox inspection</sub>
 </div>
 
 </details>
@@ -236,6 +304,11 @@ Deterministic failure traces:
 | False Negative (#1289) | False Positive (#12310) | Metric Disagreement (#3574) |
 | :---: | :---: | :---: |
 | <img src="docs/images/failure_fn_1289.png" width="100%" /> | <img src="docs/images/failure_fp_12310.png" width="100%" /> | <img src="docs/images/failure_disagreement_3574.png" width="100%" /> |
+
+<div align="center">
+<br>
+<sub>🔍 <a href="https://chirudeva-reddy.github.io/NLP-Proj/#figures"><b>Inspect all 7 plots and failure traces in the live figure exhibition</b></a></sub>
+</div>
 
 </details>
 
@@ -413,6 +486,7 @@ NLP-Proj/
 | Resource | Scope & Purpose |
 | :--- | :--- |
 | 🌐 **[Live Interactive Demo](https://chirudeva-reddy.github.io/NLP-Proj/)** | Online token-by-token scoring console with real model activations |
+| 📊 **[Figure Exhibition Gallery](https://chirudeva-reddy.github.io/NLP-Proj/#figures)** | Mounted research plots with scroll reveals, category filters, and lightbox |
 | 📄 **[Research Paper (PDF)](docs/CS_F429_Project_Report.pdf)** | Formal 14-page manuscript: theoretical basis, protocol, contributions |
 | 📖 **[Pipeline Runbook](docs/PIPELINE_RUNBOOK.md)** | Comprehensive CLI reference, flag specifications, parameter tuning |
 | 🛡️ **[Viva Defense Notes](METRICS_VIVA.md)** | Mathematical proofs, component failure analysis, viva Q&A |
