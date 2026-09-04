@@ -57,7 +57,7 @@ The same prompt is run twice — once with the retrieved evidence, once with an 
 <td>Trajectory instability — how far the residual stream rotates between consecutive answer tokens. Faithful continuations move smoothly; fabrications jump.</td>
 <td>
 
-$$\delta_t^{(\ell)} = 1 - \frac{h_t^{(\ell)} \cdot h_{t-1}^{(\ell)}}{\|h_t^{(\ell)}\|_2 \|h_{t-1}^{(\ell)}\|_2}$$
+$$\delta_t^{(\ell)} = 1 - \frac{h_t^{(\ell)} \cdot h_{t-1}^{(\ell)}}{\lVert h_t^{(\ell)} \rVert_2 \; \lVert h_{t-1}^{(\ell)} \rVert_2}$$
 
 </td></tr>
 
@@ -73,7 +73,7 @@ $$m_t^{(\ell)} = \sqrt{(h_t^{(\ell)} - \mu_\ell)^\top \Sigma_\ell^{-1} (h_t^{(\e
 <td>Cross-depth disagreement. Project intermediate layers through the unembedding matrix and compare the vocabulary distribution <i>with</i> evidence against <i>without</i> it.</td>
 <td>
 
-$$\Lambda_t^{(\ell)} = D_{\text{KL}}\left(\hat{P}_t^{(\ell)}(\mathcal{D}) \,\|\, \hat{P}_t^{(\ell)}(\emptyset)\right)$$
+$$\Lambda_t^{(\ell)} = D_{\text{KL}}\Big(\hat{P}_t^{(\ell)}(\mathcal{D}) \;\big\Vert\; \hat{P}_t^{(\ell)}(\emptyset)\Big)$$
 
 </td></tr>
 
@@ -81,7 +81,7 @@ $$\Lambda_t^{(\ell)} = D_{\text{KL}}\left(\hat{P}_t^{(\ell)}(\mathcal{D}) \,\|\,
 <td>Energy falling outside the 16-component subspace spanned by faithful activations. Complementary to Mahalanobis: direction, not scaled distance.</td>
 <td>
 
-$$\rho_t^{(\ell)} = \left\| h_t^{(\ell)} - V_\ell V_\ell^\top h_t^{(\ell)} \right\|_2$$
+$$\rho_t^{(\ell)} = \Big\lVert h_t^{(\ell)} - V_\ell V_\ell^\top h_t^{(\ell)} \Big\rVert_2$$
 
 </td></tr>
 
@@ -89,7 +89,7 @@ $$\rho_t^{(\ell)} = \left\| h_t^{(\ell)} - V_\ell V_\ell^\top h_t^{(\ell)} \righ
 <td>Intervention, not correlation. Swap activations between a faithful and a hallucinated run in both directions and measure the shift in target-token probability.</td>
 <td>
 
-$$\text{CIE}_c = P_{\mathcal{M}}^{\text{patch}(c)}(y_t^*) - P_{\mathcal{M}}^{\text{corrupt}}(y_t^*)$$
+$$\text{CIE}_c = P_{\mathcal{M}}^{\text{patch}(c)}(y_t^{\ast}) - P_{\mathcal{M}}^{\text{corrupt}}(y_t^{\ast})$$
 
 </td></tr>
 </table>
