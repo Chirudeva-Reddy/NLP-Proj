@@ -34,33 +34,15 @@ This project asks a different question: **does the model's internal state alread
 
 ## 🧭 Architecture
 
-The diagram below renders inline on GitHub (click the expand control to zoom). For the **clickable** version — where every block opens its formulation, standalone AUROC and composite weight — [open the live site →](https://chirudeva-reddy.github.io/NLP-Proj/#how)
+The same prompt is run twice — once with the retrieved evidence, once with an empty context. The difference in how the internal state evolves is the signal.
 
-```mermaid
-flowchart TD
-    A["INPUT PROMPT<br/>q + retrieved evidence D &nbsp; vs &nbsp; q + empty context"]
-    B["HIDDEN-STATE EXTRACTION<br/>token-level states, last 18 Qwen-2.5 layers"]
-    C1["Cosine Drift<br/>AUROC 0.599"]
-    C2["Mahalanobis<br/>AUROC 0.539"]
-    C3["Logit Lens KL<br/>AUROC 0.573"]
-    C4["PCA Residual<br/>AUROC 0.549"]
-    C5["Causal Patching<br/>AUROC 0.514"]
-    D["ROBUST Z-SCORE FUSION<br/>tuned on validation, then frozen"]
-    E["PRE-GENERATION SCORE<br/>AUROC 0.6511"]
+<div align="center">
 
-    A --> B
-    B --> C1
-    B --> C2
-    B --> C3
-    B --> C4
-    B --> C5
-    C1 -->|w 0.383| D
-    C4 -->|w 0.247| D
-    C3 -->|w 0.206| D
-    C2 -->|w 0.164| D
-    C5 -.->|localisation only| E
-    D --> E
-```
+[![Pipeline architecture](docs/images/pipeline.png)](https://chirudeva-reddy.github.io/NLP-Proj/#how)
+
+<sub><b>Click the diagram</b> to open the interactive version — every block reveals its formulation,<br>standalone AUROC, calibration error and weight in the frozen composite.</sub>
+
+</div>
 
 > **Note on the "5 signals".** Four representation signals are fused into the frozen composite shipped in `stats.pt`; **CIE is computed per token but used for causal localisation, not fusion** (`composite_features` in the frozen config lists four entries). Verify against your own `stats.pt` if you refit.
 
