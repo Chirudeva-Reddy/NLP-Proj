@@ -38,17 +38,15 @@ The diagram below renders inline on GitHub (click the expand control to zoom). F
 
 ```mermaid
 flowchart TD
-    A["INPUT PROMPT<br/>q + retrieved evidence D &nbsp;vs&nbsp; q + empty context ∅"]
-    B["HIDDEN-STATE EXTRACTION ACROSS DEPTH<br/>token-level h_t at layer l, last 18 Qwen-2.5 layers, forward hooks"]
-
-    C1["Cosine Drift<br/>δ_t<br/>AUROC 0.599"]
-    C2["Mahalanobis<br/>m_t<br/>AUROC 0.539"]
-    C3["Logit Lens KL<br/>Λ_t<br/>AUROC 0.573"]
-    C4["PCA Residual<br/>ρ_t<br/>AUROC 0.549"]
-    C5["Causal Patching<br/>CIE<br/>AUROC 0.514"]
-
-    D["VALIDATION-TUNED ROBUST Z-SCORE FUSION<br/>s = Σ w_i · (x_i − median_train) / IQR_train<br/>frozen — never refit on test"]
-    E["PRE-GENERATION HALLUCINATION SCORE<br/>AUROC 0.6511 · 95% CI [0.6307, 0.6614]"]
+    A["INPUT PROMPT<br/>q + retrieved evidence D &nbsp; vs &nbsp; q + empty context"]
+    B["HIDDEN-STATE EXTRACTION<br/>token-level states, last 18 Qwen-2.5 layers"]
+    C1["Cosine Drift<br/>AUROC 0.599"]
+    C2["Mahalanobis<br/>AUROC 0.539"]
+    C3["Logit Lens KL<br/>AUROC 0.573"]
+    C4["PCA Residual<br/>AUROC 0.549"]
+    C5["Causal Patching<br/>AUROC 0.514"]
+    D["ROBUST Z-SCORE FUSION<br/>tuned on validation, then frozen"]
+    E["PRE-GENERATION SCORE<br/>AUROC 0.6511"]
 
     A --> B
     B --> C1
@@ -56,19 +54,12 @@ flowchart TD
     B --> C3
     B --> C4
     B --> C5
-    C1 -->|"w = 0.383"| D
-    C4 -->|"w = 0.247"| D
-    C3 -->|"w = 0.206"| D
-    C2 -->|"w = 0.164"| D
-    C5 -.->|"causal localisation<br/>not fused"| E
+    C1 -->|w 0.383| D
+    C4 -->|w 0.247| D
+    C3 -->|w 0.206| D
+    C2 -->|w 0.164| D
+    C5 -.->|localisation only| E
     D --> E
-
-    classDef sig fill:#121a28,stroke:#4da3ff,stroke-width:1.5px,color:#e8eefb
-    classDef stage fill:#0e1420,stroke:#2a3a52,color:#e8eefb
-    classDef out fill:#13263c,stroke:#4da3ff,stroke-width:2px,color:#e8eefb
-    class C1,C2,C3,C4,C5 sig
-    class A,B,D stage
-    class E out
 ```
 
 > **Note on the "5 signals".** Four representation signals are fused into the frozen composite shipped in `stats.pt`; **CIE is computed per token but used for causal localisation, not fusion** (`composite_features` in the frozen config lists four entries). Verify against your own `stats.pt` if you refit.
