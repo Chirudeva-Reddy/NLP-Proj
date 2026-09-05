@@ -6,7 +6,7 @@
 
 [![Live Demo](https://img.shields.io/badge/▶_Live_Interactive_Demo-c8340f?style=for-the-badge&logo=googlechrome&logoColor=white)](https://chirudeva-reddy.github.io/NLP-Proj/)
 [![Gallery](https://img.shields.io/badge/📊_Figure_Exhibition-Interactive-16171a?style=for-the-badge)](https://chirudeva-reddy.github.io/NLP-Proj/#figures)
-[![Paper](https://img.shields.io/badge/📄_Research_Report-PDF-16171a?style=for-the-badge)](docs/CS_F429_Project_Report.pdf)
+[![Paper](https://img.shields.io/badge/📄_Research_Paper-14_Pages_PDF-c8340f?style=for-the-badge)](docs/CS_F429_Project_Report.pdf)
 [![AUROC](https://img.shields.io/badge/AUROC-0.6511_RAGTruth-16171a?style=for-the-badge)](https://chirudeva-reddy.github.io/NLP-Proj/#bench)
 [![Pre-Onset](https://img.shields.io/badge/Pre--Onset_Peak-t−2-c8340f?style=for-the-badge)](https://chirudeva-reddy.github.io/NLP-Proj/#onset)
 [![Model](https://img.shields.io/badge/Model-Qwen2.5--1.5B-16171a?style=for-the-badge)](https://huggingface.co/Qwen/Qwen2.5-1.5B)
@@ -487,7 +487,7 @@ NLP-Proj/
 | :--- | :--- |
 | 🌐 **[Live Interactive Demo](https://chirudeva-reddy.github.io/NLP-Proj/)** | Online token-by-token scoring console with real model activations |
 | 📊 **[Figure Exhibition Gallery](https://chirudeva-reddy.github.io/NLP-Proj/#figures)** | Mounted research plots with scroll reveals, category filters, and lightbox |
-| 📄 **[Research Paper (PDF)](docs/CS_F429_Project_Report.pdf)** | Formal 14-page manuscript: theoretical basis, protocol, contributions |
+| 📄 **[Research Paper (14 Pages, PDF)](docs/CS_F429_Project_Report.pdf)** | Formal 14-page manuscript: theoretical basis, protocol, contributions, and signed contribution statement |
 | 📖 **[Pipeline Runbook](docs/PIPELINE_RUNBOOK.md)** | Comprehensive CLI reference, flag specifications, parameter tuning |
 | 🛡️ **[Viva Defense Notes](METRICS_VIVA.md)** | Mathematical proofs, component failure analysis, viva Q&A |
 | 📚 **[Codebase Architecture](NLP-sub/COMPREHENSIVE.md)** | Source code deep-dive and modular breakdown |
@@ -526,5 +526,5 @@ Supervised by **Prof. Elakkiya Rajasekar** · May 2026
 <br>
 <sub>Built for NLP research at BITS Pilani, Dubai Campus · MIT Licensed</sub>
 <br><br>
-<a href="https://chirudeva-reddy.github.io/NLP-Proj/"><b>▶ Open the Live Interactive Demo</b></a>
+<a href="https://chirudeva-reddy.github.io/NLP-Proj/"><b>▶ Open the Live Interactive Demo</b></a> &nbsp;·&nbsp; <a href="docs/CS_F429_Project_Report.pdf"><b>📄 Read the Research Paper (14 Pages, PDF)</b></a>
 </div>
